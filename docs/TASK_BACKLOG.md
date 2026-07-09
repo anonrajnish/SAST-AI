@@ -2,346 +2,249 @@
 
 **Product:** AI‑Powered SAST Platform
 **Companion to:** [ARCHITECTURE_v2.3.md](ARCHITECTURE_v2.3.md), [PROJECT_PLAN.md](PROJECT_PLAN.md), [AI_DEVELOPMENT_GUIDE.md](AI_DEVELOPMENT_GUIDE.md)
-**Version:** 1.0
-**Date:** 2026-07-09
+**Version:** 1.1 (post‑review; MVP scope applied)
+**Date:** 2026-07-10
 **Status:** Living document — the single ordered source of "what to build next."
 
-> This backlog is derived directly from the approved architecture (v2.3) and the phased
-> project plan, with the architecture‑review feedback folded in as first‑class tasks
-> (marked **[REVIEW]**). It does **not** invent requirements. Where the source docs
-> conflict, a **DECISION** task captures the open question rather than guessing.
+> Derived from the approved architecture (v2.3) and phased plan, updated per the approved
+> Principal‑Architect review: oversized tasks split, security controls moved to ship with
+> the features they protect, MVP scope reduced, duplicates merged, missing tasks added.
+> Task numbers are **preserved**; splits use suffixes (`020a/b/c`), no completed/existing
+> task was renumbered. No requirements were invented.
 >
 > **Per the [AI_DEVELOPMENT_GUIDE](AI_DEVELOPMENT_GUIDE.md): implement ONLY the requested
-> task, one task = one commit, then STOP.** This file only defines and orders work; it
-> does not authorize implementation.
+> task, one task = one commit, then STOP.** This file defines and orders work only.
+
+---
+
+## MVP Scope (v1)
+
+The MVP is the **core deterministic scanning engine, end to end**, single‑tenant, run via
+Docker Compose. Deterministic‑first philosophy and the GitNexus code‑intelligence
+architecture are **unchanged**.
+
+**In MVP:**
+- **Language:** Python only.
+- **LLM providers:** Ollama (local, first‑class) **+ one** cloud provider.
+- **Agents:** Triage + Fix only.
+- **Delivery:** SARIF + JSON export; results UI with trace viewer.
+- **Deployment:** Docker Compose, single‑tenant.
+- **Security controls ship *with* the feature they protect** (not in a later hardening phase).
+
+**Deferred beyond MVP** (see the consolidated list at the end): authentication, multi‑tenancy,
+Hunter agent, JS/TS/HTML, cloud providers 3–9, PDF export, full observability (tracing/metrics),
+webhook/git ingestion channels, CI/CD gating, SCA scanner, the gated skill‑learning loop.
+
+---
+
+## Decision Log (resolved Gate‑0 DECISION tasks)
+
+| ID | Decision | Resolution (2026‑07‑10) |
+|----|----------|-------------------------|
+| TASK‑013D | Auth in v1? | **DEFERRED** until after the core scanning MVP. Aligns with ARCHITECTURE §1 ("no login/auth in v1"). → TASK‑013 is Post‑MVP. |
+| TASK‑014D | Tenancy model | **SINGLE‑TENANT** for v1. Multi‑tenancy (TASK‑014) is Post‑MVP. No `tenant_id` in the MVP schema. |
+| TASK‑015D | Deployment target | **Docker Compose** for v1. K8s manifests under `infra/k8s/` remain reference/future. |
+| TASK‑001D | GitNexus license | **OPEN** — external/legal; start now (calendar dependency). |
+| TASK‑003D | Path A vs B | **OPEN** — pending the TASK‑002 spike. Path A (GitNexus‑only) is the working default. |
+| TASK‑016D | Fix‑agent patch policy | **OPEN** — advisory‑only vs auto‑apply; decide before TASK‑330. |
 
 ---
 
 ## How to use this backlog
 
-1. Work **top‑down within the current phase**; do not pull future‑phase tasks early.
+1. Work **top‑down within the current phase**; do not pull future‑phase or Post‑MVP tasks early.
 2. A task is **startable** only when every `Depends on` task is `DONE`.
-3. **Blocked / DECISION tasks gate the phase** — resolve them before dependent work.
+3. **BLOCKED / DECISION tasks gate the phase** — resolve them first.
 4. Update `STATE.md` (`Last Completed Task`) after each merged task.
+5. **Security controls are not separate later tasks** — each feature task owns its control
+   (e.g., the SSRF guard lives inside the provider‑test task, HMAC inside the webhook task).
 
-### Status legend
-`TODO` · `IN‑PROGRESS` · `BLOCKED` · `DONE` · `DECISION` (needs a human/product call, not code)
-
-### Priority legend
-`P0` blocker (nothing dependent can proceed) · `P1` critical path · `P2` important · `P3` nice‑to‑have
-
-### Effort legend
-`S` ≤1 day · `M` 2–4 days · `L` ~1 week · `XL` multi‑week / R&D
-
----
-
-## Baseline — already completed (from STATE.md, TASK‑001 … TASK‑012)
-
-Recorded for continuity; **not re‑opened here**. STATE.md reports these as done:
-backend scaffold, Docker Compose, PostgreSQL, Redis, health endpoint, JWT auth (see
-**TASK‑013**, which reconciles the auth contradiction the review found). ZIP‑upload
-module is `IN‑PROGRESS` (continued as **TASK‑130** in Phase 1).
-
-> ⚠️ **[REVIEW] STATE.md is internally inconsistent** (claims JWT auth complete while
-> the architecture §1 says "no auth in v1"; references branch `feature/upload-api` while
-> git is on a clean `main`). Reconciled by **TASK‑010R** and **TASK‑013** below.
+### Legends
+- **Status:** `TODO` · `IN‑PROGRESS` · `BLOCKED` · `DONE` · `DECISION` · `⏭ POST‑MVP`
+- **Priority:** `P0` blocker · `P1` critical path · `P2` important · `P3` nice‑to‑have
+- **Effort:** `S` ≤1d · `M` 2–4d · `L` ~1wk · `XL` multi‑week/R&D
+- **MVP:** ✅ in MVP · ⏭ deferred beyond MVP
 
 ---
 
-## Phase 0 — Foundations, Gates & Decisions (blocks everything)
+## Baseline — already completed (STATE.md, TASK‑001 … TASK‑012)
 
-> The project plan is explicit: each Gate‑0 item, if skipped, invalidates later work.
-> The **DECISION** tasks below must be closed before the dependent build tasks start.
+Recorded for continuity; **not re‑opened**. Backend scaffold, Docker Compose, PostgreSQL,
+Redis, health endpoint. (The prior "JWT authentication" baseline entry is reconciled by the
+auth‑deferral decision — see STATE.md and TASK‑013.) ZIP‑upload module was `IN‑PROGRESS` and
+continues as **TASK‑130** in Phase 1.
 
-### Documentation reconciliation & governance — **[REVIEW]**
+---
+
+## Phase 0 — Foundations, Gates & Decisions (blocks everything) — ✅ MVP
+
+### Documentation reconciliation & governance — [REVIEW]
 
 | ID | Title | Status | Pri | Effort | Depends on |
 |----|-------|--------|-----|--------|-----------|
-| TASK‑010R | Reconcile source‑of‑truth doc set | TODO | P0 | S | — |
+| TASK‑010R | Reconcile source‑of‑truth doc set (filenames + Python 3.12) | **DONE** | P0 | S | — |
+| TASK‑010S | Repair `STATE.md` to reflect reality + decisions | **DONE** | P0 | S | TASK‑010R |
 | TASK‑011R | Author `docs/SECURITY.md` | TODO | P0 | M | TASK‑010R |
-| TASK‑012R | Author `docs/API_SPEC.md` (OpenAPI) | TODO | P1 | M | TASK‑010R |
-| TASK‑010S | Rewrite/repair `STATE.md` to reflect reality | TODO | P0 | S | TASK‑010R |
+| TASK‑012R | Author `docs/API_SPEC.md` (OpenAPI, MVP surface only) | TODO | P1 | M | TASK‑010R |
 
-**TASK‑010R — Reconcile source‑of‑truth doc set**
-- **Why:** The AI guide names `docs/Architecture.md`, `docs/API_SPEC.md`, `docs/SECURITY.md`
-  as sources of truth; the repo has `ARCHITECTURE_v2.3.md` and neither spec doc. The guide
-  says Python **3.13+**; the architecture says **3.12**.
-- **Acceptance:** Guide's file references match real filenames; one authoritative Python
-  version is chosen and consistent across all docs; a short "docs index" lists canonical files.
-- **Notes:** Pure documentation. No code.
+> TASK‑010R/010S applied in this documentation pass (guide filename fix, Python 3.12, STATE rewrite).
 
-**TASK‑011R — Author `docs/SECURITY.md`**
-- **Why:** It's a named source of truth and this is a security product; it must exist before security‑sensitive code.
-- **Acceptance:** Documents the threat model, the key‑custody model (§5.8/§7), the untrusted‑code
-  handling model, SSRF/webhook/prompt‑injection controls (cross‑refs TASK‑520, TASK‑140, TASK‑340),
-  the auth/tenancy posture (TASK‑013, TASK‑014D), and a secret‑rotation procedure (TASK‑410).
+### Gate‑0 decisions — resolved above (see Decision Log)
 
-**TASK‑010S — Rewrite/repair `STATE.md`**
-- **Acceptance:** `STATE.md` reflects the true branch, the true auth status, and the true
-  last‑completed task; no claims that contradict the architecture.
+TASK‑013D, TASK‑014D, TASK‑015D **resolved**. TASK‑001D, TASK‑003D, TASK‑016D remain **OPEN**.
 
-### Gate‑0 decisions (DECISION — product/human calls)
+### Gate‑0 build & convention tasks
 
-| ID | Title | Status | Pri | Effort | Depends on |
-|----|-------|--------|-----|--------|-----------|
-| TASK‑001D | **G0.1** GitNexus PolyForm‑NC license clearance | DECISION | P0 | — | — |
-| TASK‑003D | **G0.3** Path A vs Path B spike + decision | DECISION | P0 | L | TASK‑002 |
-| TASK‑013D | Auth in v1: yes/no — resolve the contradiction | DECISION | P0 | — | TASK‑010R |
-| TASK‑014D | Tenancy model: single‑ vs multi‑tenant for v1 | DECISION | P0 | — | — |
-| TASK‑015D | Deployment target for v1: Compose vs K8s | DECISION | P1 | — | — |
-| TASK‑016D | Fix Agent patch: advisory‑only vs auto‑apply | DECISION | P1 | — | — |
+| ID | Title | Status | Pri | Effort | MVP | Depends on |
+|----|-------|--------|-----|--------|-----|-----------|
+| TASK‑002 | GitNexus `--pdg` spike on 3–5 Python repos | TODO | P0 | L | ✅ | TASK‑001D |
+| TASK‑020a | Eval corpus acquisition + labeling (OWASP Bench, Juliet, curated internal) | TODO | P0 | L | ✅ | TASK‑010R |
+| TASK‑020b | Eval runner (execute rules over corpus) | TODO | P0 | M | ✅ | TASK‑020a |
+| TASK‑020c | Metrics reporter: precision/recall/F1 **per rule & per language** | TODO | P0 | M | ✅ | TASK‑020b |
+| TASK‑021 | Callable eval interface (per‑candidate deltas vs active version) | TODO | P0 | M | ✅ | TASK‑020c |
+| TASK‑022 | LLM‑in‑the‑loop threat model (prompt injection, G0.4) | TODO | P0 | M | ✅ | TASK‑011R |
+| TASK‑023 | **[REVIEW +NEW]** Testing & CI coverage‑gate convention (unit/integration/negative) | TODO | P0 | S | ✅ | — |
+| TASK‑024 | **[REVIEW +NEW]** Alembic baseline migration + migration convention | TODO | P0 | S | ✅ | — |
+| TASK‑030 | Infra bring‑up: repos, CI, Postgres/Redis/GitNexus containers (Compose) | TODO | P1 | M | ✅ | TASK‑015D |
+| TASK‑031 | KEK secret‑injection **+ fail‑closed KEK handling** (moved from 411) | TODO | P1 | M | ✅ | TASK‑030 |
+| TASK‑032 | Remove default/hardcoded credentials from `.env.example` & compose | TODO | P1 | S | ✅ | TASK‑030 |
+| TASK‑033 | **[REVIEW +NEW]** GitNexus image signature verification (cosign) + pinned tag | TODO | P2 | S | ✅ | TASK‑030 |
 
-- **TASK‑001D (G0.1):** Outcome = commercial grant (akonlabs), confirmed noncommercial
-  deployment, or committed permissive fallback engine. *Start the conversation now — it is a
-  calendar dependency outside the team's control.* Blocks any code that hard‑depends on GitNexus.
-- **TASK‑003D (G0.3):** Time‑boxed 1‑week spike (**TASK‑002**), then decide. Decides the Phase‑2 foundation.
-- **TASK‑013D [REVIEW]:** The custody/settings/skill‑promotion model requires "auth + admin
-  role," but §1 says "no auth in v1." Either ship minimal auth in v1 (**TASK‑013**) or explicitly
-  descope the security claims to "trusted‑network deployment only." **Cannot be left ambiguous.**
-- **TASK‑014D [REVIEW]:** Multi‑tenant pricing tiers (per‑org skills, org quotas) imply a
-  tenancy the schema can't express (`api_key_meta.provider` is globally `UNIQUE`; no owner
-  columns). Decide now — retrofitting `tenant_id` later touches every table. Feeds **TASK‑014**.
+**TASK‑020a/b/c — Eval harness (split from TASK‑020).** The measuring instrument; MVP targets Python.
+**TASK‑021 — Callable interface.** Library/service call returning precision/recall **deltas** vs. the active version (needed later by the deferred learning loop; the interface is built now so it isn't refactored).
+**TASK‑031 — now also owns fail‑closed KEK.** `from_secret()` must reject a short/invalid KEK (no silent `ljust` padding). AES‑GCM AAD + rotation remain in TASK‑411 (Phase 4, with custody).
 
-### Gate‑0 build tasks
-
-| ID | Title | Status | Pri | Effort | Depends on |
-|----|-------|--------|-----|--------|-----------|
-| TASK‑002 | GitNexus `--pdg` spike on 3–5 target repos | TODO | P0 | L | TASK‑001D |
-| TASK‑020 | **G0.2** Evaluation harness (OWASP Bench + Juliet + internal corpus) | TODO | P0 | XL | TASK‑010R |
-| TASK‑021 | Make eval harness **callable per‑candidate** (library/service API) | TODO | P0 | M | TASK‑020 |
-| TASK‑022 | **G0.4** Threat model for LLM‑in‑the‑loop (prompt injection) | TODO | P0 | M | TASK‑011R |
-| TASK‑030 | Infra bring‑up: repos, CI, Postgres/Redis/GitNexus containers | TODO | P1 | M | TASK‑003D |
-| TASK‑031 | Wire KEK secret‑injection (the §5.8 custody model) | TODO | P1 | M | TASK‑030 |
-| TASK‑013 | Minimal auth + admin role (or descope) per TASK‑013D | TODO | P0 | M | TASK‑013D |
-| TASK‑014 | Tenancy scaffolding in schema (if multi‑tenant) per TASK‑014D | TODO | P0 | L | TASK‑014D |
-| TASK‑032 | Remove default/hardcoded credentials from `.env.example` & compose | TODO | P1 | S | TASK‑030 |
-
-**TASK‑020 — Evaluation harness (the measuring instrument)**
-- **Why:** Per the plan, nothing else can be judged without it — it is Phase 0, not an afterthought.
-- **Acceptance:** OWASP Benchmark + NIST Juliet + a small curated internal corpus with
-  known vulnerable/safe labels; a runner that outputs **precision, recall, F1 per rule and per
-  language**; produces a baseline number.
-- **Notes:** This is the gate every later phase steers by.
-
-**TASK‑021 — Callable eval harness**
-- **Why:** The skill‑learning `eval_gate` (§5.10) must invoke it **on demand against a trial
-  skill/rule version** and return precision/recall **deltas vs. the active version** — not just a
-  nightly CI job — or it gets refactored later.
-- **Acceptance:** A library/service call parameterized by a candidate returns deltas vs. baseline.
-
-**TASK‑022 — LLM‑in‑the‑loop threat model (G0.4)**
-- **Why:** The Triage agent *suppresses* findings; injection via analyzed source is the #2 ranked risk.
-- **Acceptance:** A written, testable design for data/instruction separation, "ignore in‑code
-  instructions," and **trace‑required suppression** (no suppression without a machine‑checkable
-  deterministic path). Concrete mechanism, not a property claim. Feeds **TASK‑340** red‑team tests.
-
-**TASK‑032 — Remove default credentials [REVIEW]**
-- **Why:** `minioadmin/minioadmin`, `sast_user/sast_pass`, and a placeholder `SECRET_KEY`
-  ship in `.env.example`/compose, contradicting the guide's "no hardcoded credentials."
-- **Acceptance:** Defaults are generated/injected; `.env.example` contains only non‑secret
-  placeholders with clear "generate me" guidance.
-
-**Phase 0 exit:** license path chosen (TASK‑001D), harness prints a baseline (TASK‑020/021),
-Path A/B decided (TASK‑003D), injection defense designed (TASK‑022), auth & tenancy calls made
-(TASK‑013D/014D), docs reconciled (TASK‑010R).
+**Phase 0 exit:** license conversation open (001D), Path A/B spike done (002→003D), eval harness
+prints a Python baseline (020a‑c/021), injection defense designed (022), testing + migration
+conventions set (023/024), docs reconciled (010R/010S). Auth/tenancy/deploy **decided** (see log).
 
 ---
 
-## Phase 1 — Walking Skeleton
+## Phase 1 — Walking Skeleton — ✅ MVP
 
-> One vuln class (SQL injection), one language (Python), flowing the *entire* pipeline end
-> to end — thin but complete. Runs against the eval harness from day one, even at low scores.
+> One vuln class (SQL injection), Python, full pipeline end to end. **Cross‑cutting API
+> conventions and their security controls are established here, not retrofitted later.**
 
-| ID | Title | Status | Pri | Effort | Depends on |
-|----|-------|--------|-----|--------|-----------|
-| TASK‑110 | Project & Folder CRUD (models, migrations, API, schemas) | TODO | P1 | M | TASK‑013/014 |
-| TASK‑120 | Scan orchestrator + Celery job lifecycle (skeleton) | TODO | P1 | M | TASK‑110 |
-| TASK‑130 | **ZIP upload module** (continues in‑progress work) | IN‑PROGRESS | P1 | M | TASK‑120 |
-| TASK‑131 | ZIP hardening: slip/bomb/traversal/symlink + ClamAV + limits | TODO | P0 | M | TASK‑130 |
-| TASK‑140 | Per‑scan sandbox: namespaces, cgroups, seccomp, tmpfs, drop caps | TODO | P0 | L | TASK‑120 |
-| TASK‑150 | GitNexus runner: `gitnexus analyze --pdg` per scan + `.gitnexus/` lifecycle | TODO | P1 | M | TASK‑003D, TASK‑140 |
-| TASK‑151 | `graph_facade` unified read API over LadybugDB | TODO | P1 | M | TASK‑150 |
-| TASK‑160 | Minimal intra‑procedural taint check (routes→orm, SQLi/Python) | TODO | P1 | M | TASK‑151 |
-| TASK‑161 | Candidate emitter + `candidates` table persistence | TODO | P1 | S | TASK‑160 |
-| TASK‑170 | Findings storage (SARIF) + `findings` table | TODO | P1 | M | TASK‑161 |
-| TASK‑180 | Frontend skeleton: upload → scan → results w/ trace viewer | TODO | P1 | L | TASK‑170 |
-| TASK‑190 | Skeleton scored by the eval harness end‑to‑end | TODO | P1 | S | TASK‑020, TASK‑180 |
+| ID | Title | Status | Pri | Effort | MVP | Depends on |
+|----|-------|--------|-----|--------|-----|-----------|
+| TASK‑110 | Project & Folder CRUD (models, migrations, API, schemas) | TODO | P1 | M | ✅ | TASK‑024 |
+| TASK‑112 | **[REVIEW +NEW]** API middleware: rate limiting, security headers, CORS, TLS (nginx) | TODO | P1 | M | ✅ | TASK‑030 |
+| TASK‑113 | **[REVIEW +NEW]** Structured logging convention (no secrets/PII; req/project/scan IDs) | TODO | P1 | S | ✅ | TASK‑030 |
+| TASK‑120 | Scan orchestrator + Celery job lifecycle (skeleton) | TODO | P1 | M | ✅ | TASK‑110 |
+| TASK‑121 | Scan cancellation (`DELETE /scans/{id}`, `cancelled` status) | TODO | P3 | S | ✅ | TASK‑120 |
+| TASK‑130 | **ZIP upload module** (continues in‑progress work) | IN‑PROGRESS | P1 | M | ✅ | TASK‑120 |
+| TASK‑131 | ZIP hardening: slip/bomb/traversal/symlink + ClamAV + limits | TODO | P0 | M | ✅ | TASK‑130 |
+| TASK‑140a | Sandbox isolation‑tier spike/decision (gVisor/Kata/microVM vs namespaces) | TODO | P0 | M | ✅ | TASK‑120 |
+| TASK‑140b | Per‑scan sandbox implementation (cgroups, seccomp, tmpfs, drop caps, egress allowlist) | TODO | P0 | L | ✅ | TASK‑140a |
+| TASK‑150 | GitNexus runner: `gitnexus analyze --pdg` per scan + `.gitnexus/` lifecycle | TODO | P1 | M | ✅ | TASK‑003D, TASK‑140b |
+| TASK‑151 | `graph_facade` unified read API over LadybugDB (+ `json_exporter` snapshot) | TODO | P1 | M | ✅ | TASK‑150 |
+| TASK‑160 | Minimal intra‑procedural taint check (routes→orm, SQLi/Python) | TODO | P1 | M | ✅ | TASK‑151 |
+| TASK‑161 | Candidate emitter + `candidates` table persistence | TODO | P1 | S | ✅ | TASK‑160 |
+| TASK‑170 | Findings storage (SARIF) + `findings` table | TODO | P1 | M | ✅ | TASK‑161 |
+| TASK‑460 | Pagination convention on all list endpoints (moved earlier from Phase 4) | TODO | P2 | S | ✅ | TASK‑170 |
+| TASK‑521 | Idempotency keys on `POST /scans/trigger` (upload/REST triggers) | TODO | P1 | S | ✅ | TASK‑120 |
+| TASK‑180a | Frontend: upload + scan trigger flow | TODO | P1 | M | ✅ | TASK‑170 |
+| TASK‑180b | Frontend: results list + trace viewer | TODO | P1 | M | ✅ | TASK‑180a |
+| TASK‑190 | Skeleton scored by the eval harness end‑to‑end | TODO | P1 | S | ✅ | TASK‑020c, TASK‑180b |
 
-**TASK‑131 — ZIP hardening**
-- **Acceptance:** ZIP Slip, ZIP bomb (size/depth/file‑count limits from `.env`), path traversal,
-  and symlink attacks are blocked with negative tests; ClamAV scan on extraction; enforces
-  `MAX_ZIP_SIZE_MB`, `MAX_FILES_PER_SCAN`, `MAX_LINES_PER_FILE`.
+> **Note:** TASK‑110 no longer depends on auth/tenancy (single‑tenant, auth deferred). It depends
+> only on the migration convention (TASK‑024).
 
-**TASK‑140 — Per‑scan sandbox [REVIEW]**
-- **Why:** The mandate is "treat uploaded repos as hostile," but §5.2's `ScanSandbox` is a `pass`
-  stub and the isolation *tier* is unchosen.
-- **Acceptance:** Choose and implement an isolation tier appropriate for hostile input (evaluate
-  gVisor/Kata/Firecracker microVM vs. plain namespaces and record the decision in `SECURITY.md`);
-  non‑root user, seccomp profile, cgroup CPU/mem/disk limits, tmpfs work dir, dropped capabilities,
-  **no worker egress except an allowlist** (LLM providers only). Verified by an escape‑attempt test.
-
-**TASK‑160 — Minimal taint check**
-- **Acceptance:** For a tiny real Python repo, a routes‑source → orm‑sink SQLi candidate is
-  produced intra‑procedurally, stored, and rendered with its trace. Proves the seams, not the engine.
-
-**Phase 1 exit:** a real finding on a real (tiny) repo, visible in the portal, measured by the harness.
+**Phase 1 exit:** a real SQLi finding on a tiny Python repo, visible in the portal, measured by the harness; API conventions (rate‑limit, headers, logging, pagination, idempotency) in place.
 
 ---
 
-## Phase 2 — Interprocedural Taint Engine ⚠ critical path
+## Phase 2 — Interprocedural Taint Engine ⚠ critical path — ✅ MVP (Python)
 
-> **This is the product.** Build breadth‑first; **check the eval harness after each capability.**
-> No hand‑wavy "done" — the harness number is the gate.
+> **The product.** Build breadth‑first; **check the eval harness after each capability.** The
+> hard cross‑function work (TASK‑210) is split so each increment is independently gatable.
 
-| ID | Title | Status | Pri | Effort | Depends on |
-|----|-------|--------|-----|--------|-----------|
-| TASK‑210 | Cross‑function propagation (walk CALLS, bind args↔params) | TODO | P1 | XL | Phase 1 |
-| TASK‑220 | Field sensitivity (`obj.a` tainted vs `obj.b` clean) | TODO | P1 | L | TASK‑210 |
-| TASK‑230 | Context‑sensitive sanitizer semantics (SQL≠XSS) | TODO | P1 | L | TASK‑220 |
-| TASK‑240 | Source/sink modeling: seed `routes`/`orm` + rulepacks for top CWEs | TODO | P1 | L | TASK‑230 |
-| TASK‑241 | Rulepack engine + `rulepacks` table + YAML validation endpoint | TODO | P1 | M | TASK‑240 |
-| TASK‑250 | Path materialization → concrete, explainable source→sink trace | TODO | P1 | L | TASK‑240 |
-| TASK‑260 | Language expansion: Python quality first, then JS/TS (measure) | TODO | P1 | XL | TASK‑250 |
-| TASK‑270 | Pattern matcher (secrets, dangerous APIs) + secret scanner | TODO | P2 | M | Phase 1 |
-| TASK‑280 | SCA scanner (OSV dependency CVEs) | TODO | P2 | M | Phase 1 |
-| TASK‑290 | **Agent skills authoring** (`common` + `python` + Django/Flask) — parallel, writing not code | TODO | P2 | L | TASK‑021 |
+| ID | Title | Status | Pri | Effort | MVP | Depends on |
+|----|-------|--------|-----|--------|-----|-----------|
+| TASK‑210a | Call‑graph worklist traversal (walk GitNexus CALLS) | TODO | P1 | L | ✅ | Phase 1 |
+| TASK‑210b | Arg↔param binding across boundaries | TODO | P1 | L | ✅ | TASK‑210a |
+| TASK‑210c | Return‑value propagation | TODO | P1 | M | ✅ | TASK‑210b |
+| TASK‑210d | Recursion/cycle handling + function summaries/caching | TODO | P1 | L | ✅ | TASK‑210c |
+| TASK‑220 | Field sensitivity (`obj.a` tainted vs `obj.b` clean) | TODO | P1 | L | ✅ | TASK‑210d |
+| TASK‑230 | Context‑sensitive sanitizer semantics (SQL≠XSS) | TODO | P1 | L | ✅ | TASK‑220 |
+| TASK‑240 | Source/sink modeling: seed `routes`/`orm` + rulepacks, top Python CWEs | TODO | P1 | L | ✅ | TASK‑230 |
+| TASK‑241 | Rulepack engine + `rulepacks` table + YAML validation endpoint | TODO | P1 | M | ✅ | TASK‑240 |
+| TASK‑250 | Path materialization → concrete, explainable source→sink trace | TODO | P1 | L | ✅ | TASK‑240 |
+| TASK‑260a | **Python** hardening to precision/recall targets | TODO | P1 | XL | ✅ | TASK‑250 |
+| TASK‑270 | Pattern matcher + secret scanner (cheap, high‑value) | TODO | P2 | M | ✅ | Phase 1 |
+| TASK‑290 | Agent‑skills authoring: `common` + `python` (+ Django/Flask) — writing, parallel | TODO | P2 | L | ✅ | — |
 
-**Top CWEs in scope (TASK‑240):** SQLi, XSS, command injection, path traversal, SSRF, deserialization.
+**Top Python CWEs (TASK‑240):** SQLi, XSS, command injection, path traversal, SSRF, deserialization.
+**TASK‑290 dependency relaxed:** authoring is writing and starts immediately; only *eval‑checking* a skill needs TASK‑021.
 
-**TASK‑260 — Language expansion**
-- **Acceptance [REVIEW]:** JS/TS precision is **measured and disclosed separately**; weaker type
-  resolution is expected → do **not** block Python GA on JS parity. Per‑language targets recorded.
-
-**Phase 2 exit gate:** agreed precision/recall targets hit on the eval corpus for the top CWEs in
-**Python**, with **JS/TS measured and documented** (even if lower). Slipping this slips GA one‑for‑one.
+**Phase 2 exit gate:** agreed precision/recall targets met on the eval corpus for the top CWEs in **Python**. (JS/TS/HTML deferred — see Post‑MVP.)
 
 ---
 
-## Phase 3 — AI Agent Layer (overlaps Phase 2 back half)
+## Phase 3 — AI Agent Layer (Triage + Fix) — ✅ MVP (overlaps Phase 2 back half)
 
-> Starts as soon as candidates flow (mid‑Phase 2). **Triage first** (highest ROI). Skills are
-> **LIVE but STATIC** here (hand‑authored, versioned files) — the automated loop ships in Phase 4b.
+> Starts as soon as candidates flow. **Triage first.** Skills are **LIVE but STATIC**
+> (hand‑authored, versioned). Hunter agent and the automated learning loop are Post‑MVP.
 
-| ID | Title | Status | Pri | Effort | Depends on |
-|----|-------|--------|-----|--------|-----------|
-| TASK‑310 | Agent orchestrator + MCP client over GitNexus (17 tools) | TODO | P1 | L | TASK‑210 |
-| TASK‑311 | **[REVIEW]** Concurrent, budget‑bounded agent pipeline | TODO | P1 | L | TASK‑310 |
-| TASK‑312 | **[REVIEW]** Candidate dedup/pre‑filter before the LLM stage | TODO | P1 | M | TASK‑161 |
-| TASK‑320 | Triage agent (kill false positives) | TODO | P1 | L | TASK‑310 |
-| TASK‑321 | Skill composer/loader/registry (common+tech+framework as DATA) | TODO | P1 | M | TASK‑290 |
-| TASK‑330 | Fix agent (patch + severity + CWE) per TASK‑016D | TODO | P1 | L | TASK‑320 |
-| TASK‑331 | **[REVIEW]** Strict schema validation of all LLM output | TODO | P0 | M | TASK‑320 |
-| TASK‑340 | **[REVIEW]** Prompt‑injection defense ships **with** Triage + red‑team suite | TODO | P0 | L | TASK‑022, TASK‑320 |
-| TASK‑350 | Hunter agent (logic/authz/business‑logic flaws) — last | TODO | P2 | XL | TASK‑330 |
-| TASK‑360 | LLM router + provider adapters (all 9 providers) | TODO | P1 | L | TASK‑310 |
+| ID | Title | Status | Pri | Effort | MVP | Depends on |
+|----|-------|--------|-----|--------|-----|-----------|
+| TASK‑310 | Agent orchestrator + MCP client over GitNexus | TODO | P1 | L | ✅ | TASK‑210a |
+| TASK‑311 | **[REVIEW]** Concurrent, budget‑bounded agent pipeline (enforce per‑scan cap) | TODO | P1 | L | ✅ | TASK‑310 |
+| TASK‑312 | **[REVIEW]** Candidate dedup/pre‑filter before the LLM stage | TODO | P1 | M | ✅ | TASK‑161 |
+| TASK‑321 | Skill composer/loader/registry (common+python as DATA, not instructions) | TODO | P1 | M | ✅ | TASK‑290 |
+| TASK‑320 | Triage agent (kill false positives) | TODO | P1 | L | ✅ | TASK‑310, TASK‑321 |
+| TASK‑331 | **[REVIEW]** Strict schema validation of all LLM output (deterministic path required) | TODO | P0 | M | ✅ | TASK‑320 |
+| TASK‑340 | **[REVIEW]** Prompt‑injection defense ships **with** Triage + red‑team suite | TODO | P0 | L | ✅ | TASK‑022, TASK‑320 |
+| TASK‑330 | Fix agent (patch + severity + CWE) per TASK‑016D | TODO | P1 | L | ✅ | TASK‑320, TASK‑016D |
+| TASK‑322 | **[REVIEW +NEW]** Agent config surface (`agent_configs`, `/agents/config`) | TODO | P2 | M | ✅ | TASK‑310 |
 
-**TASK‑311 — Concurrent, budget‑bounded pipeline [REVIEW]**
-- **Why:** §5.5 runs Triage→Hunter→Fix strictly sequentially per candidate; on large repos this is a
-  latency and $ blow‑up, and the per‑scan budget cap isn't wired into the loop.
-- **Acceptance:** Bounded concurrency (semaphore); `COST_PER_SCAN_BUDGET_USD` enforced **inside**
-  the orchestration loop (aborts past cap, preserves partial findings); per‑agent model routing
-  (cheap/local model for high‑volume Triage).
+**TASK‑311** enforces `COST_PER_SCAN_BUDGET_USD` **inside** the orchestration loop (aborts past cap, preserves partial findings); bounded concurrency; cheap/local model routed to high‑volume Triage.
+**TASK‑340** ships with Triage (not after); trace‑required suppression; red‑team corpus in CI.
 
-**TASK‑331 — LLM output validation [REVIEW]**
-- **Acceptance:** Every agent response is parsed against a strict schema; malformed output is
-  rejected, never trusted; enforces the guardrail that **every finding carries a concrete
-  deterministic path** (LLM adjusts confidence, never invents a finding).
-
-**TASK‑340 — Prompt‑injection defense [REVIEW]**
-- **Acceptance:** Ships **with** Triage (not after); analyzed code treated as untrusted data;
-  in‑code instructions ignored; a suppression is honored only with a machine‑checkable trace;
-  a red‑team test corpus passes in CI.
-
-**Phase 3 exit:** Triage measurably cuts FP rate without dropping TP past the agreed threshold;
-injection red‑team tests pass; agents compose the correct skill per stack.
+**Phase 3 exit:** Triage measurably cuts FP rate without dropping TP past threshold; injection tests green; agents compose the correct Python skill.
 
 ---
 
-## Phase 4 — Cost, Provider Config, Portal (fully parallel from Phase 1)
+## Phase 4 — Cost, Provider Config, Results UI — ✅ MVP (parallel from Phase 1)
 
-| ID | Title | Status | Pri | Effort | Depends on |
-|----|-------|--------|-----|--------|-----------|
-| TASK‑410 | Hardened key custody: ciphertext in DB, KEK injected | TODO | P1 | M | TASK‑031 |
-| TASK‑411 | **[REVIEW]** Crypto hardening: fail‑closed KEK, AES‑GCM AAD, key rotation | TODO | P0 | M | TASK‑410 |
-| TASK‑420 | Provider settings: **Configure → Test → Select → Save** flow (§5.8) | TODO | P1 | L | TASK‑410 |
-| TASK‑421 | **[REVIEW]** SSRF guard on provider `base_url` (Ollama/self‑hosted) | TODO | P0 | M | TASK‑420 |
-| TASK‑430 | Cost metering: `usage_meter`, `llm_usage`, computed `cost_usd` | TODO | P1 | M | TASK‑360 |
-| TASK‑431 | Price catalog: `model_prices` (YAML seed + UI override) | TODO | P1 | M | TASK‑430 |
-| TASK‑432 | **[REVIEW]** Cost rollup without lock contention | TODO | P1 | M | TASK‑430 |
-| TASK‑440 | Usage dashboard: per‑scan/agent/model + portal total, date range | TODO | P2 | L | TASK‑431 |
-| TASK‑450 | Results UI, trace viewer, findings filters, SARIF/JSON/PDF export | TODO | P2 | L | TASK‑170 |
-| TASK‑460 | **[REVIEW]** Pagination on findings/candidates/usage list endpoints | TODO | P2 | S | TASK‑170 |
+| ID | Title | Status | Pri | Effort | MVP | Depends on |
+|----|-------|--------|-----|--------|-----|-----------|
+| TASK‑360a | LLM base/router + **Ollama** adapter | TODO | P1 | M | ✅ | TASK‑310 |
+| TASK‑360b | **One cloud** provider adapter | TODO | P1 | M | ✅ | TASK‑360a |
+| TASK‑410 | Hardened key custody: ciphertext in DB, KEK injected | TODO | P1 | M | ✅ | TASK‑031 |
+| TASK‑411 | **[REVIEW]** Crypto hardening: AES‑GCM AAD (bind provider) + key rotation | TODO | P1 | M | ✅ | TASK‑410 |
+| TASK‑420a | Provider settings: test‑connection + model‑list | TODO | P1 | M | ✅ | TASK‑410 |
+| TASK‑420b | Provider settings: select + persist (Save gated on test+model) | TODO | P1 | M | ✅ | TASK‑420a |
+| TASK‑421 | **[REVIEW]** SSRF guard on provider `base_url` (inside 420a) | TODO | P0 | M | ✅ | TASK‑420a |
+| TASK‑430 | Cost metering: `usage_meter`, `llm_usage`, computed `cost_usd` **+ partition scheme at table creation** | TODO | P1 | M | ✅ | TASK‑360b |
+| TASK‑431 | Price catalog: `model_prices` (YAML seed + UI override) | TODO | P1 | M | ✅ | TASK‑430 |
+| TASK‑432 | **[REVIEW]** Cost rollup without lock contention (CONCURRENTLY or incremental) | TODO | P1 | M | ✅ | TASK‑430 |
+| TASK‑440 | Usage view: per‑scan/agent/model + portal total | TODO | P2 | M | ✅ | TASK‑431 |
+| TASK‑450 | Results UI polish: filters + SARIF/JSON export | TODO | P2 | M | ✅ | TASK‑180b |
 
-**TASK‑411 — Crypto hardening [REVIEW]**
-- **Acceptance:** `from_secret()` **fails closed** on a short/invalid KEK (no silent `ljust` padding);
-  AES‑GCM binds the `provider` id as **associated data (AAD)** to prevent ciphertext substitution;
-  a documented **key‑rotation / re‑encryption** procedure exists (cross‑ref `SECURITY.md`).
+> **TASK‑430** now defines the `llm_usage` **partition scheme at creation time** (moved earlier from the Phase‑5 retention task — retro‑partitioning a hot table is costly). Purge/enforcement stays in Phase 5 (TASK‑580).
+> **TASK‑421** is not a standalone late task — it is implemented **inside** TASK‑420a (the feature that introduces the outbound call).
 
-**TASK‑421 — SSRF guard [REVIEW]**
-- **Why:** The backend calls a user‑supplied `base_url` on *Test connection* → classic SSRF
-  (e.g. `169.254.169.254`, internal services). §8 lists SSRF in scope but no control is specified.
-- **Acceptance:** `base_url` and any outbound test/clone target is validated against a
-  deny‑internal / allowlist policy; DNS‑rebinding‑aware; covered by negative tests.
-
-**TASK‑432 — Cost rollup [REVIEW]**
-- **Why:** `REFRESH MATERIALIZED VIEW usage_rollup` (non‑CONCURRENTLY) locks and full‑scans the
-  highest‑write table on every scan completion → contention under concurrency.
-- **Acceptance:** `REFRESH … CONCURRENTLY` (with the required unique index) **or** an incremental
-  rollup table; verified under concurrent scans.
-
-**Phase 4 exit:** an analyst can configure a provider, pick a model, run a scan, and see the cost
-broken down by agent and model.
+**Phase 4 exit:** an analyst configures Ollama or the one cloud provider, picks a model, runs a scan, and sees cost broken down by agent and model. **This closes the MVP.**
 
 ---
 
-## Phase 4b — Gated Skill‑Learning Loop (deferred; post‑GA)
+## Phase 5 — Hardening & Scale (toward GA)
 
-> **Off the GA critical path.** Hand‑authored versioned skills (Phase 3) deliver most of the value;
-> the loop adds a new persistent attack surface (**skill‑poisoning**) and should bake against a
-> harness validated on real pilot scans. Team‑tier feature.
+| ID | Title | Status | Pri | Effort | MVP | Depends on |
+|----|-------|--------|-----|--------|-----|-----------|
+| TASK‑510 | Concurrency/throughput tuning; worker isolation under load | TODO | P1 | L | ⏭ | Phase 2 |
+| TASK‑511 | **[REVIEW]** Remove GitNexus single‑service SPOF/bottleneck | TODO | P1 | L | ⏭ | TASK‑150 |
+| TASK‑512 | **[REVIEW]** Shared/object‑backed `.gitnexus/` index storage | TODO | P1 | M | ⏭ | TASK‑150 |
+| TASK‑540 | Full platform security review (sandbox escape, ZIP bombs, injection, custody) | TODO | P0 | L | ⏭ | Phase 3 |
+| TASK‑550 | Incremental re‑index via GitNexus `detect_changes` | TODO | P2 | M | ⏭ | TASK‑150 |
+| TASK‑560 | Reachability‑based FP suppression (deterministic; distinct from Triage's agent check) | TODO | P2 | M | ⏭ | TASK‑250 |
+| TASK‑580 | **[REVIEW]** Data retention + purge (uses the TASK‑430 partition scheme) | TODO | P1 | M | ⏭ | TASK‑430 |
+| TASK‑590 | **[REVIEW]** Backup/DR for Postgres, MinIO, index volume | TODO | P1 | M | ⏭ | TASK‑030 |
+| TASK‑595 | **[REVIEW]** Reconcile `findings.confidence` vocabulary with SAST semantics | TODO | P2 | S | ⏭ | TASK‑170 |
 
-| ID | Title | Status | Pri | Effort | Depends on |
-|----|-------|--------|-----|--------|-----------|
-| TASK‑4b10 | `candidate_recorder` + `skill_learning_candidates` table | TODO | P3 | M | Phase 3, Pilot |
-| TASK‑4b20 | `eval_gate` (runs TASK‑021 harness per candidate, precision/recall deltas) | TODO | P3 | M | TASK‑021 |
-| TASK‑4b30 | `promoter`: human‑approved → new versioned `SKILL.md` (git + `registry.yaml`) | TODO | P3 | M | TASK‑4b20 |
-| TASK‑4b40 | `LearningQueue` review UI with eval deltas; approve/reject (admin) | TODO | P3 | L | TASK‑4b30 |
-| TASK‑4b50 | Skill‑poisoning safeguards: auto‑reject recall‑lowering; versioned + reversible | TODO | P3 | M | TASK‑4b20 |
-
-**Security invariants (must hold):** agents never write their own skills; skill content is DATA
-not instructions; a recall‑lowering candidate is **auto‑rejected before any human sees it**;
-everything is versioned and one revert away.
-
----
-
-## Phase 5 — Hardening & Scale
-
-| ID | Title | Status | Pri | Effort | Depends on |
-|----|-------|--------|-----|--------|-----------|
-| TASK‑510 | Concurrency/throughput tuning; worker isolation under load | TODO | P1 | L | Phase 2 |
-| TASK‑511 | **[REVIEW]** Remove GitNexus single‑service SPOF/bottleneck | TODO | P1 | L | TASK‑150 |
-| TASK‑512 | **[REVIEW]** Shared/object‑backed `.gitnexus/` index storage for multi‑node workers | TODO | P1 | M | TASK‑150 |
-| TASK‑520 | **[REVIEW]** Webhook HMAC verification (GitHub/GitLab) + idempotency | TODO | P0 | M | TASK‑120 |
-| TASK‑521 | **[REVIEW]** Idempotency keys on `POST /scans/trigger` & webhooks | TODO | P1 | S | TASK‑120 |
-| TASK‑530 | CI/CD gating: PR comments, policy‑as‑code, SARIF into GitHub/GitLab | TODO | P1 | L | TASK‑450 |
-| TASK‑540 | Full platform security review (sandbox escape, ZIP bombs, injection, custody) | TODO | P0 | L | Phase 3 |
-| TASK‑550 | Incremental re‑index via GitNexus `detect_changes` | TODO | P2 | M | TASK‑150 |
-| TASK‑560 | Reachability‑based FP suppression (confidence‑down, not hard‑suppress) | TODO | P2 | M | TASK‑250 |
-| TASK‑570 | **[REVIEW]** Observability: structured logs → aggregation, Prometheus, OTel tracing | TODO | P1 | L | Phase 1 |
-| TASK‑580 | **[REVIEW]** Data retention + partitioning (`llm_usage`, `findings`, `scans`) | TODO | P1 | M | TASK‑430 |
-| TASK‑590 | **[REVIEW]** Backup/DR for Postgres, MinIO, index volume | TODO | P1 | M | TASK‑030 |
-| TASK‑595 | **[REVIEW]** Reconcile `findings.confidence` vocabulary with SAST semantics | TODO | P2 | S | TASK‑170 |
-
-**TASK‑570 — Observability [REVIEW]**
-- **Why:** The guide mandates "observable" + structured logging, but no metrics/tracing/aggregation
-  components exist. Enforces the logging rules (never log secrets/PII; log request/project/scan IDs,
-  execution time, errors, server‑side stack traces).
-
-**TASK‑595 — Confidence vocabulary [REVIEW]**
-- **Why:** `findings.confidence CHECK ('extracted','inferred','ambiguous')` reads as copied from a
-  different domain and doesn't match the SAST confidence/severity semantics used elsewhere.
-- **Acceptance:** One coherent confidence model across candidates, findings, and agent output;
-  migration if the enum changes.
+> Note: `findings.confidence` reconciliation (TASK‑595) is small; if it forces a schema/enum change,
+> that is the **one** place a minor architecture §9 edit may be required — raise before acting.
 
 ---
 
@@ -349,12 +252,37 @@ everything is versioned and one revert away.
 
 | ID | Title | Status | Pri | Effort | Depends on |
 |----|-------|--------|-----|--------|-----------|
-| TASK‑610 | Onboard 1–2 design partners; scan their real repositories | TODO | P1 | L | Phase 5 |
+| TASK‑610 | Onboard 1–2 design partners; scan their real Python repos | TODO | P1 | L | Phase 5 |
 | TASK‑620 | Measure precision/recall on *their* code; tune rulepacks/prompts | TODO | P1 | L | TASK‑610 |
 | TASK‑630 | GA readiness checklist (security review passed, targets met) | TODO | P0 | M | TASK‑540, TASK‑620 |
 
-**GA success:** target precision/recall on a design partner's real repo (not just benchmarks),
-acceptable scan time, and analyst‑judged usefulness of triage + fixes.
+---
+
+## Post‑MVP / Deferred (consolidated) — ⏭
+
+Preserved IDs; each carries its own security control inline when built.
+
+| ID | Task | Why deferred |
+|----|------|-------------|
+| TASK‑013 | Authentication + admin role (JWT/OAuth2, RBAC) | Decision TASK‑013D: after core scanning MVP |
+| TASK‑014 | Multi‑tenancy scaffolding (`tenant_id`, per‑org isolation) | Decision TASK‑014D: MVP is single‑tenant |
+| TASK‑350 | Hunter agent (logic/authz/business‑logic flaws) | Plan: fuzziest/last; Triage delivers core value |
+| TASK‑260b | JS language support (engine + rulepacks + eval) | Plan: Python first; weaker JS type resolution |
+| TASK‑260c | TS language support | Post‑MVP GA breadth |
+| TASK‑260d | HTML support | Post‑MVP GA breadth |
+| TASK‑360c | Cloud providers 3–9 (Anthropic/OpenAI/Gemini/Azure/OpenRouter/DeepSeek/GLM/Groq set) | MVP = Ollama + one cloud |
+| TASK‑451 | PDF export (SARIF/JSON is the MVP export) | Gold‑plating for MVP |
+| TASK‑570 | Full observability stack (Prometheus + OTel tracing + aggregation) | MVP keeps structured logging only (TASK‑113) |
+| TASK‑280 | SCA scanner (OSV dependency CVEs) | Not the differentiator; secret/pattern (TASK‑270) stays in MVP |
+| TASK‑520 | Webhook ingestion (GitHub/GitLab) **incl. HMAC verification + idempotency** | Input channel beyond the MVP upload path; control ships with it |
+| TASK‑532 | Git‑clone ingestion channel (`/folders/{id}/git`) **incl. SSRF/URL guard** | Input channel beyond MVP; control ships with it |
+| TASK‑530 | CI/CD gating: PR comments, policy‑as‑code, SARIF into GitHub/GitLab | GA feature, not an MVP blocker |
+| Phase 4b | Gated skill‑learning loop (candidate→eval‑gate→approve→promote) | Plan: post‑GA; new attack surface (skill‑poisoning); Team tier |
+
+**Phase 4b tasks retained for later:** TASK‑4b10 `candidate_recorder`, TASK‑4b20 `eval_gate`
+(reuses TASK‑021), TASK‑4b30 `promoter`, TASK‑4b40 `LearningQueue` UI, TASK‑4b50 poisoning
+safeguards. Security invariants unchanged: agents never write their own skills; skills are DATA;
+recall‑lowering candidates auto‑rejected; versioned + reversible.
 
 ---
 
@@ -362,43 +290,43 @@ acceptable scan time, and analyst‑judged usefulness of triage + fixes.
 
 | Milestone | Definition | Key tasks |
 |-----------|-----------|-----------|
-| **M0** | Gate 0 passed: license path chosen, harness baseline, Path A/B decided, injection defense designed, auth/tenancy decided, docs reconciled | TASK‑001D, 020, 003D, 022, 013D, 014D, 010R |
-| **M1** | Walking skeleton: one real finding, end to end, measured | TASK‑190 |
-| **M2** | Taint engine v1: precision/recall targets met on top CWEs (Python) — *the* milestone | TASK‑260 exit gate |
-| **M3** | Triage cuts FP rate past threshold; injection tests green | TASK‑320, 340 |
-| **M4** | Provider/model flow + per‑scan/agent/model cost live | TASK‑420, 430, 440 |
-| **M4b** | (post‑GA) A candidate passes the eval‑gate and is promoted, fully audited | TASK‑4b30 |
-| **M5** | CI/CD gating + security review passed; runs at target concurrency | TASK‑530, 540, 510 |
-| **M6** | Pilot success on a partner's real repo → GA | TASK‑630 |
+| **M0** | Gate 0 passed: license open, harness baseline, Path A/B decided, injection defense designed, conventions set, docs reconciled | 001D, 002/003D, 020a‑c/021, 022, 023/024, 010R |
+| **M1** | Walking skeleton: one real Python finding, end to end, measured; API conventions in place | 190 |
+| **M2** | Taint engine v1: precision/recall targets met on top Python CWEs — *the* milestone | 260a exit gate |
+| **M3** | Triage cuts FP rate past threshold; injection tests green | 320, 340, 331 |
+| **M4** | Ollama + one cloud provider flow + per‑scan/agent/model cost live — **MVP complete** | 360a/b, 420a/b, 430, 440 |
+| **M5** | Security review passed; runs at target concurrency (GA hardening) | 540, 510 |
+| **M6** | Pilot success on a partner's real Python repo → GA | 630 |
 
 ---
 
-## Risk → mitigating‑task map (from PROJECT_PLAN §5)
+## Risk → mitigating‑task map (PROJECT_PLAN §5 + review)
 
 | Risk | Mitigating tasks |
 |------|-----------------|
-| Taint engine misses accuracy targets | TASK‑020/021 (harness), TASK‑160 (narrow slice), Phase 2 per‑CWE gates |
-| Prompt injection via analyzed source | TASK‑022, TASK‑340, TASK‑331 |
-| GitNexus PolyForm‑NC license | TASK‑001D (+ Path B/permissive fallback) |
-| GitNexus PDG insufficient for target langs | TASK‑002 / TASK‑003D spike |
-| JS/TS precision below Python | TASK‑260 (measure & disclose per‑language) |
-| LLM cost runs away on large repos | TASK‑311 (budget cap + routing), TASK‑430/431 |
-| No ground‑truth eval | TASK‑020 |
-| Sandbox escape / ZIP bomb | TASK‑131, TASK‑140, TASK‑540 |
-| Skill‑poisoning | Phase 4b gated loop only (TASK‑4b20/4b50); never auto‑writeback |
-| **[REVIEW]** SSRF via base_url/git/webhook | TASK‑421, TASK‑520 |
-| **[REVIEW]** No auth/tenancy in a security product | TASK‑013D/013, TASK‑014D/014 |
-| **[REVIEW]** GitNexus single‑service SPOF | TASK‑511, TASK‑512 |
+| Taint engine misses accuracy targets | 020a‑c/021, 160 (narrow slice), 210a‑d + 260a per‑CWE gates |
+| Prompt injection via analyzed source | 022, 340, 331 |
+| GitNexus PolyForm‑NC license | 001D (+ Path B/permissive fallback) |
+| GitNexus PDG insufficient | 002 / 003D spike |
+| LLM cost runaway | 311 (budget cap + routing), 430/431 |
+| No ground‑truth eval | 020a‑c |
+| Sandbox escape / ZIP bomb | 131, 140a/b, 540 |
+| SSRF via base_url (+ git URL when built) | 421 (inside 420a); 532 for git ingestion (Post‑MVP) |
+| GitNexus single‑service SPOF | 511, 512 (Phase 5) |
+| Skill‑poisoning | Phase 4b gated loop only; never auto‑writeback |
 
 ---
 
-## Recommended first two weeks (from PROJECT_PLAN §7, + review P0s)
+## Recommended first two weeks (updated)
 
-1. **TASK‑020/021** — the evaluation harness (nothing else can be judged without it).
-2. **TASK‑002 → TASK‑003D** — the GitNexus `--pdg` spike (one week; decides the Phase‑2 foundation).
-3. **TASK‑001D** — start the license conversation now (calendar dependency outside the team).
-4. **TASK‑010R / TASK‑013D / TASK‑014D** — close the doc/auth/tenancy contradictions before feature code.
+1. **TASK‑020a/b/c + TASK‑021** — the evaluation harness (Python). Nothing is judgeable without it.
+2. **TASK‑002 → TASK‑003D** — the GitNexus `--pdg` spike (decides the Phase‑2 foundation).
+3. **TASK‑001D** — start the license conversation now (external calendar dependency).
+4. **TASK‑023 / TASK‑024** — lock the testing + migration conventions before the first model/endpoint.
+
+Decisions on auth, tenancy, and deployment are **already made** (single‑tenant, auth deferred,
+Docker Compose) — no longer blockers.
 
 ---
 
-*End of TASK_BACKLOG.md — definitions and ordering only. No implementation is authorized by this file.*
+*End of TASK_BACKLOG.md v1.1 — definitions and ordering only. No implementation is authorized by this file.*

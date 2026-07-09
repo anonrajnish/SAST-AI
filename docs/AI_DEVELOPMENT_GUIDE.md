@@ -25,12 +25,16 @@ Always prioritize:
 
 Before making any code changes always read the following documents:
 
-1. docs/Architecture.md
+1. docs/ARCHITECTURE_v2.3.md   (canonical architecture)
 2. docs/PROJECT_PLAN.md
 3. docs/STATE.md
 4. docs/TASK_BACKLOG.md
-5. docs/API_SPEC.md (if applicable)
-6. docs/SECURITY.md (if applicable)
+5. docs/API_SPEC.md (if applicable — to be authored, TASK-012R)
+6. docs/SECURITY.md (if applicable — to be authored, TASK-011R)
+
+The **MVP scope and all resolved product decisions** (single-tenant, auth deferred,
+Python-only, Ollama + one cloud provider, Docker Compose) live in docs/TASK_BACKLOG.md
+and docs/STATE.md. Do not exceed MVP scope without a backlog task authorizing it.
 
 Never invent requirements.
 
@@ -93,7 +97,7 @@ Readable code over clever code.
 
 Use:
 
-Python 3.13+
+Python 3.12
 
 FastAPI
 
