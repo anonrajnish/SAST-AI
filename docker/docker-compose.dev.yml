@@ -1,0 +1,60 @@
+# Development stack: Postgres + Redis + backend + frontend.
+# Feature services (gitnexus, worker, minio, nginx) are added with their feature tasks.
+# No default credentials: POSTGRES_PASSWORD must be provided via ../.env (see .env.example).
+name: sast-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sastdb
+      POSTGRES_USER: sast_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sast_user -d sastdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://sast_user:${POSTGRES_PASSWORD}@postgres:5432/sastdb
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "4173:4173"
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
