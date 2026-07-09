@@ -21,6 +21,21 @@
 > work is **parked and unenforced**; its actual code state must be verified before TASK-013 is
 > scheduled. It is not counted as delivered MVP functionality.
 
+## Completed — Engineering Foundation (validated 2026-07-10)
+Phase-0 engineering skeleton built and **runtime-validated** on branch
+`feature/engineering-foundation` (awaiting human review before merge; not merged to main):
+
+- **Backend startup validated** — FastAPI app boots via uvicorn (app factory + config wiring).
+- **Health endpoints validated** — `GET /api/v1/health` and `/api/v1/health/live` return HTTP 200.
+- **Readiness behaves correctly without PostgreSQL** — `/api/v1/health/ready` fails closed with
+  HTTP 503 `{"status":"not_ready","database":"unavailable"}` when the database is unavailable.
+- **OpenAPI verified** — schema exposes only the three health routes; no business endpoints leaked.
+- **Structured logging verified** — JSON/structlog output emitted; the readiness failure logged as
+  `readiness_check_failed` with no secret/DSN leakage (AI_DEVELOPMENT_GUIDE §11).
+
+> Also green offline: backend ruff + mypy + pytest (99% coverage) and the Alembic empty baseline.
+> Docker Compose runtime was not exercised (no Docker in this environment).
+
 ## In Progress
 - ZIP upload module (TASK-130)
 
@@ -43,7 +58,9 @@ gated skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
 - `docs/SECURITY.md` and `docs/API_SPEC.md` not yet authored (TASK-011R, TASK-012R).
 
 ## Current Branch
-main
+feature/engineering-foundation (Engineering Foundation; awaiting human review before merge)
 
 ## Last Completed Task
-TASK-012 (baseline). Documentation reconciliation TASK-010R / TASK-010S applied 2026-07-10.
+Engineering Foundation built and runtime-validated (2026-07-10) on
+`feature/engineering-foundation`; awaiting human review before merge.
+Prior: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.
