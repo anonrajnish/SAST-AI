@@ -64,6 +64,24 @@ slices / 020b / 020c).
   `mypy --strict eval/harness` clean; `pytest eval/harness/tests` = 34 passed. Manual
   validation: loader smoke-run over the shipped registry + a sample label set succeeded.
 
+## Completed — Evaluation Harness label-integrity validator (TASK-020a, Slice 2 — 2026-07-10)
+Second slice of TASK-020a on branch `feature/task-020a-evaluation-foundation` (awaiting human
+review before merge; not merged to main). Adds referential-integrity checking of labels against
+a corpus tree. Still no dataset downloads, no rule/benchmark execution, no metrics, no AI logic.
+
+- **Validator** (`eval/harness/validator.py`): `validate_label_set_against_corpus(label_set,
+  corpus_root) -> IntegrityReport`. Read-only — files are stat-ed and their lines stream-counted,
+  never imported or executed. Reuses `resolve_within_directory` for path-safety.
+- **Structured results**: `IntegrityReport` (`ok`, `n_issues`) and `IntegrityIssue`
+  (`kind`, `detail`, optional `label_id`/`file`/`line`); `IntegrityIssueKind` covers
+  `invalid_corpus_root`, `missing_file`, `not_a_file`, `line_out_of_range`, `undecodable_file`,
+  `path_escape`. An unusable corpus root is **reported as an issue, not raised** (per review
+  refinement), so callers always get one inspectable report; `errors.py` was left unchanged.
+- **DoD gates green** (root `.venv`): `ruff check eval/harness` clean; `mypy --strict eval/harness`
+  clean; `pytest eval/harness/tests` = 44 passed (10 new). Manual validation: validator smoke-run
+  over the fixture corpus (ok), an invalid root (reported), and a mismatched root (structured
+  missing-file issues) all behaved as designed.
+
 ## In Progress
 - ZIP upload module (TASK-130)
 
@@ -86,11 +104,12 @@ gated skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
 - `docs/SECURITY.md` and `docs/API_SPEC.md` not yet authored (TASK-011R, TASK-012R).
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (TASK-020a Slice 1; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (TASK-020a Slice 2; awaiting human review before merge)
 
 ## Last Completed Task
-TASK-020a Slice 1 — evaluation-harness ground-truth contract (models + loader + corpus
-registry + tests) on `feature/task-020a-evaluation-foundation` (2026-07-10); DoD gates green;
-awaiting human review before merge.
+TASK-020a Slice 2 — evaluation-harness label-integrity validator (`validator.py` +
+`IntegrityReport`/`IntegrityIssue` + tests + fixture corpus) on
+`feature/task-020a-evaluation-foundation` (2026-07-10); DoD gates green; awaiting human review
+before merge. Prior: TASK-020a Slice 1 — ground-truth contract (models + loader + corpus registry).
 Prior: Engineering Foundation built and runtime-validated (2026-07-10) on
 `feature/engineering-foundation`. Earlier: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.
