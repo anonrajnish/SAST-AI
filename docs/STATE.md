@@ -34,7 +34,13 @@ Phase-0 engineering skeleton built and **runtime-validated** on branch
   `readiness_check_failed` with no secret/DSN leakage (AI_DEVELOPMENT_GUIDE §11).
 
 > Also green offline: backend ruff + mypy + pytest (99% coverage) and the Alembic empty baseline.
-> Docker Compose runtime was not exercised (no Docker in this environment).
+> **Docker Compose runtime validated (2026-07-10):** all four services (postgres, redis, backend,
+> frontend) start; postgres + redis report healthy; `GET /api/v1/health`, `/health/live`, and
+> `/health/ready` all return HTTP 200; backend↔PostgreSQL connectivity confirmed over the compose
+> network; frontend served by `vite preview` loads; stack tears down cleanly. Two engineering fixes
+> applied on this branch: the Makefile now passes `--env-file $(CURDIR)/.env` to every Compose
+> command (root `.env` was previously not picked up for `${POSTGRES_PASSWORD}` interpolation), and a
+> root `.dockerignore` was added (build context shrank from ~300 MB to <200 kB).
 
 ## In Progress
 - ZIP upload module (TASK-130)

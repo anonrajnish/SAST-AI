@@ -1,0 +1,15 @@
+# Keep the Docker build context small and free of host artifacts / secrets.
+# Build context is the repository root (see docker/docker-compose.dev.yml).
+
+.venv/
+**/node_modules/
+.git/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+frontend/dist/
+coverage/
+htmlcov/
+*.log
+.env

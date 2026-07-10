@@ -5,7 +5,7 @@
 VENV    := $(CURDIR)/.venv
 PY      := $(VENV)/bin/python
 PIP     := $(VENV)/bin/pip
-COMPOSE := docker compose -f docker/docker-compose.dev.yml
+COMPOSE := docker compose --env-file $(CURDIR)/.env -f docker/docker-compose.dev.yml
 
 .PHONY: help install install-backend install-frontend lint lint-backend lint-frontend \
         typecheck typecheck-backend typecheck-frontend test fmt build-frontend \
