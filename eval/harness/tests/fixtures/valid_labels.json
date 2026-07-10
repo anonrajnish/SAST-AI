@@ -1,0 +1,29 @@
+{
+  "corpus_id": "project_curated",
+  "language": "python",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "curated-sqli-001",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": { "file": "sqli/basic_query.py", "start_line": 12, "end_line": 12 },
+      "verdict": "vulnerable",
+      "cwe": "CWE-89",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "string-formatted SQL from a request parameter"
+    },
+    {
+      "label_id": "curated-safe-001",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": { "file": "sqli/parameterized.py", "start_line": 20, "end_line": 24 },
+      "verdict": "safe",
+      "cwe": null,
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "parameterized query, not exploitable"
+    }
+  ]
+}

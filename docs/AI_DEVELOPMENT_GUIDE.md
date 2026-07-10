@@ -505,3 +505,36 @@ Quality is always more important than speed.
 
 If uncertain,
 STOP and ask for clarification rather than guessing.
+
+# Definition of Done (DoD)
+
+A backlog task is complete only if ALL of the following are true:
+
+## Implementation
+- Only the approved task scope is implemented.
+- No unrelated features are added.
+- No placeholder or TODO code remains unless explicitly approved.
+
+## Quality
+- Ruff passes.
+- MyPy passes.
+- All tests pass.
+
+## Validation
+- Manual validation completed where required.
+- Docker validation completed if the task affects Docker.
+
+## Documentation
+- STATE.md updated.
+- No frozen documents modified unless explicitly approved.
+
+## Review
+Before requesting review, provide:
+- Summary of work completed.
+- Files created.
+- Files modified.
+- Test results.
+- Validation results.
+- Known limitations (if any).
+
+Stop after the Definition of Done is satisfied.

@@ -53,10 +53,12 @@ Phase 2 is the schedule spine; slipping it slips GA one-for-one.
 
 The gates here are not paperwork; each one, if skipped, invalidates later work.
 
-- **G0.1 GitNexus license clearance.** Resolve PolyForm-Noncommercial before ANY code
-  depends on GitNexus. Outcomes: (a) commercial grant via akonlabs, or (b) confirmed
-  noncommercial deployment, or (c) commit to the permissive fallback engine. *If this
-  fails late, Phase 2 is partly wasted.*
+- **G0.1 GitNexus license clearance — RESOLVED for the current MVP.** GitNexus is approved for
+  this personal, non-commercial, public project under the PolyForm Noncommercial license
+  (outcome (b): confirmed noncommercial deployment). *Future action:* if the project is ever
+  commercialized (SaaS, enterprise deployment, paid product, or proprietary distribution), the
+  license must be re-evaluated — obtain a commercial grant via akonlabs, or commit to the
+  permissive fallback engine.
 - **G0.2 Evaluation harness.** Stand up OWASP Benchmark + NIST Juliet + a small curated
   internal corpus with known vulnerable/safe labels. Wire a runner that outputs
   precision, recall, F1 **per rule and per language**. This is the instrument every
@@ -239,8 +241,9 @@ Gate 0 ──> Phase 1 ──> Phase 2 (taint engine) ────────�
 
 1. **The evaluation harness (G0.2).** Nothing else can be judged without it.
 2. **The GitNexus `--pdg` spike (G0.3).** One week, decides your Phase 2 foundation.
-3. **Start the license conversation (G0.1)** in parallel — it's a calendar dependency
-   outside your control, so begin it now.
+3. **License (G0.1) — already resolved for this MVP.** GitNexus is approved under PolyForm
+   Noncommercial for this personal, non-commercial project; re-evaluate only if it is ever
+   commercialized.
 
 Everything else waits behind these three. They're cheap, fast, and each one prevents a
 category of expensive late rework.

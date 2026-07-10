@@ -7,6 +7,9 @@
 - **Authentication:** Deferred until after the core scanning MVP (TASK-013). Matches ARCHITECTURE §1 ("no login/auth in v1").
 - **Deployment target:** Docker Compose (K8s manifests remain reference/future).
 - **Code intelligence:** GitNexus, Path A (GitNexus-only) working default; Path B pending TASK-002 spike (TASK-003D open).
+- **GitNexus licensing (TASK-001D — RESOLVED 2026-07-10):** This is a personal, non-commercial, public GitHub project; GitNexus is used under its PolyForm Noncommercial license, and no commercial use, SaaS offering, paid product, or enterprise deployment is planned at this stage.
+  - **Decision:** GitNexus is approved for the current personal/non-commercial MVP.
+  - **Future Action:** If this project is ever commercialized (SaaS, enterprise deployment, paid product, or proprietary distribution), the GitNexus license must be re-evaluated and either: obtain an appropriate commercial license, or replace GitNexus with an alternative implementation.
 - **MVP scope:** Python only · Ollama + one cloud provider · Triage + Fix agents · SARIF/JSON export.
 
 ## Completed (baseline, TASK-001 … TASK-012)
@@ -42,6 +45,25 @@ Phase-0 engineering skeleton built and **runtime-validated** on branch
 > command (root `.env` was previously not picked up for `${POSTGRES_PASSWORD}` interpolation), and a
 > root `.dockerignore` was added (build context shrank from ~300 MB to <200 kB).
 
+## Completed — Evaluation Harness foundation (TASK-020a, Slice 1 — 2026-07-10)
+First slice of TASK-020a on branch `feature/task-020a-evaluation-foundation` (awaiting human
+review before merge; not merged to main). Establishes the **ground-truth data contract** only —
+no dataset downloads, no runner, no metrics, no AI logic (those remain in TASK-020a later
+slices / 020b / 020c).
+
+- **Typed models** (`eval/harness/models.py`, Pydantic v2, frozen, `extra="forbid"`):
+  `SourceLocation`, `GroundTruthLabel`, `LabelSet`, `CorpusDescriptor` (with optional
+  `checksum` for future dataset integrity), `CorpusRegistry`; enums `Language` (Python only),
+  `CorpusKind` (`owasp_benchmark`/`nist_juliet`/`project_curated`), `Verdict`.
+- **Read-only loader** (`eval/harness/loader.py`): `load_label_set`, `load_corpus_registry`,
+  `load_labels_for_corpus`, `resolve_within_directory`; relative-path/anti-traversal validation;
+  typed errors in `eval/harness/errors.py`. No network, no execution, no `backend/app` coupling.
+- **Corpus registry** (`eval/corpus_registry.json`): descriptors for the three MVP Python
+  corpora — descriptors only, corpus data still fetched (never vendored) in a later slice.
+- **DoD gates green** (foundation toolchain via root `.venv`): `ruff check eval/harness` clean;
+  `mypy --strict eval/harness` clean; `pytest eval/harness/tests` = 34 passed. Manual
+  validation: loader smoke-run over the shipped registry + a sample label set succeeded.
+
 ## In Progress
 - ZIP upload module (TASK-130)
 
@@ -60,13 +82,15 @@ full observability (tracing/metrics), webhook/git ingestion, CI/CD gating, SCA s
 gated skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
 
 ## Known Issues
-- GitNexus PolyForm-NC license not yet cleared (TASK-001D) — blocks commercial use.
+- ~~GitNexus PolyForm-NC license not yet cleared (TASK-001D)~~ — **RESOLVED 2026-07-10:** approved for the personal/non-commercial MVP; re-evaluate only if the project is ever commercialized (see Resolved Decisions → GitNexus licensing).
 - `docs/SECURITY.md` and `docs/API_SPEC.md` not yet authored (TASK-011R, TASK-012R).
 
 ## Current Branch
-feature/engineering-foundation (Engineering Foundation; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (TASK-020a Slice 1; awaiting human review before merge)
 
 ## Last Completed Task
-Engineering Foundation built and runtime-validated (2026-07-10) on
-`feature/engineering-foundation`; awaiting human review before merge.
-Prior: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.
+TASK-020a Slice 1 — evaluation-harness ground-truth contract (models + loader + corpus
+registry + tests) on `feature/task-020a-evaluation-foundation` (2026-07-10); DoD gates green;
+awaiting human review before merge.
+Prior: Engineering Foundation built and runtime-validated (2026-07-10) on
+`feature/engineering-foundation`. Earlier: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.

@@ -1,0 +1,42 @@
+{
+  "version": "1",
+  "corpora": [
+    {
+      "id": "owasp_benchmark",
+      "name": "OWASP Benchmark",
+      "kind": "owasp_benchmark",
+      "language": "python",
+      "license": "GPL-2.0-or-later",
+      "homepage": "https://owasp.org/www-project-benchmark/",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "owasp-benchmark",
+      "labels_path": "owasp-benchmark.labels.json",
+      "notes": "Corpus data is fetched in a later TASK-020a slice, not committed."
+    },
+    {
+      "id": "nist_juliet",
+      "name": "NIST Juliet",
+      "kind": "nist_juliet",
+      "language": "python",
+      "license": "NIST-PD",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "nist-juliet",
+      "labels_path": "nist-juliet.labels.json",
+      "notes": "Corpus data is fetched in a later TASK-020a slice, not committed."
+    },
+    {
+      "id": "project_curated",
+      "name": "Project Curated",
+      "kind": "project_curated",
+      "language": "python",
+      "license": "MIT",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "project-curated",
+      "labels_path": "project-curated.labels.json",
+      "notes": "Small in-repo curated cases; labels authored in a later TASK-020a slice."
+    }
+  ]
+}

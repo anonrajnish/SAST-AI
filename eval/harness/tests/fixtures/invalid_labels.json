@@ -1,0 +1,15 @@
+{
+  "corpus_id": "project_curated",
+  "language": "python",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "bad-001",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": { "file": "x.py", "start_line": 1 },
+      "verdict": "maybe",
+      "source": "manual-curation"
+    }
+  ]
+}

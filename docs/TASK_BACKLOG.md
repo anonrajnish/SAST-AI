@@ -44,7 +44,7 @@ webhook/git ingestion channels, CI/CD gating, SCA scanner, the gated skill‑lea
 | TASK‑013D | Auth in v1? | **DEFERRED** until after the core scanning MVP. Aligns with ARCHITECTURE §1 ("no login/auth in v1"). → TASK‑013 is Post‑MVP. |
 | TASK‑014D | Tenancy model | **SINGLE‑TENANT** for v1. Multi‑tenancy (TASK‑014) is Post‑MVP. No `tenant_id` in the MVP schema. |
 | TASK‑015D | Deployment target | **Docker Compose** for v1. K8s manifests under `infra/k8s/` remain reference/future. |
-| TASK‑001D | GitNexus license | **OPEN** — external/legal; start now (calendar dependency). |
+| TASK‑001D | GitNexus license | **RESOLVED (2026‑07‑10)** — Approved for the current personal/non‑commercial MVP under PolyForm Noncommercial. **Future action:** if ever commercialized (SaaS, enterprise deployment, paid product, or proprietary distribution), re‑evaluate the GitNexus license — obtain an appropriate commercial license, or replace GitNexus with an alternative implementation. |
 | TASK‑003D | Path A vs B | **OPEN** — pending the TASK‑002 spike. Path A (GitNexus‑only) is the working default. |
 | TASK‑016D | Fix‑agent patch policy | **OPEN** — advisory‑only vs auto‑apply; decide before TASK‑330. |
 
@@ -91,7 +91,7 @@ continues as **TASK‑130** in Phase 1.
 
 ### Gate‑0 decisions — resolved above (see Decision Log)
 
-TASK‑013D, TASK‑014D, TASK‑015D **resolved**. TASK‑001D, TASK‑003D, TASK‑016D remain **OPEN**.
+TASK‑013D, TASK‑014D, TASK‑015D, TASK‑001D **resolved**. TASK‑003D, TASK‑016D remain **OPEN**.
 
 ### Gate‑0 build & convention tasks
 
@@ -114,7 +114,7 @@ TASK‑013D, TASK‑014D, TASK‑015D **resolved**. TASK‑001D, TASK‑003D, TA
 **TASK‑021 — Callable interface.** Library/service call returning precision/recall **deltas** vs. the active version (needed later by the deferred learning loop; the interface is built now so it isn't refactored).
 **TASK‑031 — now also owns fail‑closed KEK.** `from_secret()` must reject a short/invalid KEK (no silent `ljust` padding). AES‑GCM AAD + rotation remain in TASK‑411 (Phase 4, with custody).
 
-**Phase 0 exit:** license conversation open (001D), Path A/B spike done (002→003D), eval harness
+**Phase 0 exit:** license resolved (001D), Path A/B spike done (002→003D), eval harness
 prints a Python baseline (020a‑c/021), injection defense designed (022), testing + migration
 conventions set (023/024), docs reconciled (010R/010S). Auth/tenancy/deploy **decided** (see log).
 
@@ -290,7 +290,7 @@ recall‑lowering candidates auto‑rejected; versioned + reversible.
 
 | Milestone | Definition | Key tasks |
 |-----------|-----------|-----------|
-| **M0** | Gate 0 passed: license open, harness baseline, Path A/B decided, injection defense designed, conventions set, docs reconciled | 001D, 002/003D, 020a‑c/021, 022, 023/024, 010R |
+| **M0** | Gate 0 passed: license resolved, harness baseline, Path A/B decided, injection defense designed, conventions set, docs reconciled | 001D, 002/003D, 020a‑c/021, 022, 023/024, 010R |
 | **M1** | Walking skeleton: one real Python finding, end to end, measured; API conventions in place | 190 |
 | **M2** | Taint engine v1: precision/recall targets met on top Python CWEs — *the* milestone | 260a exit gate |
 | **M3** | Triage cuts FP rate past threshold; injection tests green | 320, 340, 331 |
@@ -321,7 +321,7 @@ recall‑lowering candidates auto‑rejected; versioned + reversible.
 
 1. **TASK‑020a/b/c + TASK‑021** — the evaluation harness (Python). Nothing is judgeable without it.
 2. **TASK‑002 → TASK‑003D** — the GitNexus `--pdg` spike (decides the Phase‑2 foundation).
-3. **TASK‑001D** — start the license conversation now (external calendar dependency).
+3. **TASK‑001D** — **RESOLVED:** GitNexus is approved under PolyForm Noncommercial for this personal, non‑commercial MVP; re‑evaluate the license only if the project is ever commercialized.
 4. **TASK‑023 / TASK‑024** — lock the testing + migration conventions before the first model/endpoint.
 
 Decisions on auth, tenancy, and deployment are **already made** (single‑tenant, auth deferred,
