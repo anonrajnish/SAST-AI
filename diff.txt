@@ -1,0 +1,425 @@
+diff --git a/.gitignore b/.gitignore
+index 918735e..e2127e7 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -29,9 +29,13 @@ frontend/.vite/
+ *.key
+ /run/secrets/
+ 
+-# ---- Eval corpora (fetched, never vendored — see eval/README.md) ----
+-eval/corpus/*
+-!eval/corpus/.gitkeep
++# ---- Eval corpora --------------------------------------------------
++# Corpora are split by distribution policy at the directory level:
++#   eval/corpus/committed/**  -> TRACKED   (small, permissively-licensed corpora)
++#   eval/corpus/downloaded/** -> IGNORED   (large/licensed corpora; fetched, never vendored)
++# Ground-truth labels (eval/labels/**) are always tracked.
++eval/corpus/downloaded/*
++!eval/corpus/downloaded/.gitkeep
+ 
+ # ---- Editor / OS ----
+ .DS_Store
+diff --git a/docs/AI_DEVELOPMENT_GUIDE.md b/docs/AI_DEVELOPMENT_GUIDE.md
+index 5f8b0fa..f0c401f 100644
+--- a/docs/AI_DEVELOPMENT_GUIDE.md
++++ b/docs/AI_DEVELOPMENT_GUIDE.md
+@@ -33,8 +33,10 @@ Before making any code changes always read the following documents:
+ 6. docs/SECURITY.md (if applicable — to be authored, TASK-011R)
+ 
+ The **MVP scope and all resolved product decisions** (single-tenant, auth deferred,
+-Python-only, Ollama + one cloud provider, Docker Compose) live in docs/TASK_BACKLOG.md
+-and docs/STATE.md. Do not exceed MVP scope without a backlog task authorizing it.
++MVP languages **Python + JavaScript + TypeScript + HTML** — a modular, multi-language
++platform, with Java/C·C++/Go/.NET on the future roadmap — Ollama + one cloud provider,
++Docker Compose) live in docs/TASK_BACKLOG.md and docs/STATE.md. Do not exceed MVP scope
++without a backlog task authorizing it.
+ 
+ Never invent requirements.
+ 
+diff --git a/docs/ARCHITECTURE_v2.3.md b/docs/ARCHITECTURE_v2.3.md
+index 6179444..f3793d1 100644
+--- a/docs/ARCHITECTURE_v2.3.md
++++ b/docs/ARCHITECTURE_v2.3.md
+@@ -4,6 +4,15 @@
+ **Date:** 2026-07-09  
+ **Status:** Updated Architecture -- Agentic AI + Deterministic Detection + GitNexus + Cost Tracking + Learnable Agent Skills
+ 
++> **Amendment (2026-07-15) -- multi-language scope reconciliation:** This platform is a
++> **modular, multi-language** SAST engine. **MVP languages:** Python, JavaScript, TypeScript,
++> HTML (already reflected in §1, §4, §5.7, §9). **Future roadmap:** Java, C/C++, Go, .NET, and
++> additional languages -- each gaining deterministic analysis, language-specific rulepacks, an
++> evaluation corpus, AI-assisted triage, and AI-assisted remediation as it lands. The
++> **evaluation harness is language-agnostic**; **OWASP Benchmark (Java)** and **NIST Juliet
++> (C/C++)** are planned corpora for those future languages, not the MVP. See §12. No
++> implementation or schema was changed by this amendment.
++
+ > **v2.1 changes (baked in, no manual edits needed):**
+ > - Replaced **Graphify** with **GitNexus** (github.com/abhigyanpatwari/GitNexus) as the offline code-intelligence engine.
+ > - GitNexus supplies structure + framework modeling (`routes` = taint sources, `orm` = sinks) + an **experimental intra-procedural PDG** (`gitnexus analyze --pdg`).
+@@ -74,6 +83,10 @@ An agentic AI-powered Static Application Security Testing (SAST) platform for Py
+ - JavaScript, TypeScript
+ - HTML
+ 
++> **Language roadmap:** the detection stack (rulepacks, taint models, agent skills) is
++> organized per language so new languages plug in without re-architecting. **Java, C/C++,
++> Go, and .NET** are planned future additions beyond v1 (see §12).
++
+ ### No login/auth in v1 -- can be added later.
+ 
+ ---
+@@ -1833,6 +1846,8 @@ networks:
+ | **Skill eval-gate automation** | Auto-run the eval harness on every learning candidate; surface precision/recall deltas in the review queue | High |
+ | **Per-org private skills** | Tenant-scoped agent skills + private eval corpora so learning stays isolated | Medium |
+ | **Upstream taint models** | Extend GitNexus's Python/Java source-sink models for more frameworks | Medium |
++| **Additional language support** | Per-language rulepacks + taint models + agent skills + eval corpora for **Java, C/C++, Go, .NET** (modular; no re-architecture) | High |
++| **Evaluation corpora (future languages)** | **OWASP Benchmark** (Java) and **NIST Juliet** (C/C++) as known-answer corpora for those languages; harness stays language-agnostic | Medium |
+ | **Path B unified store** | Optionally export GitNexus graph into Neo4j for single-Cypher queries across structure + dataflow | Low |
+ | **False Positive Learning** | Agent feedback loop to improve triage | Medium |
+ | **Custom Agent Prompts** | User-defined agent behaviors | Medium |
+diff --git a/docs/CHANGELOG.md b/docs/CHANGELOG.md
+index 238314a..135db54 100644
+--- a/docs/CHANGELOG.md
++++ b/docs/CHANGELOG.md
+@@ -7,6 +7,60 @@ Format loosely follows Keep a Changelog. Dates are ISO‑8601.
+ 
+ ---
+ 
++## [Unreleased] — 2026-07-15
++
++Documentation reconciliation of the **multi‑language project vision** (approved decision).
++No application code changed. This **supersedes the language‑scope** of the 2026‑07‑10
++"MVP reduced to: Python only" decision below — all other 2026‑07‑10 scope decisions
++(single‑tenant, auth deferred, Docker Compose, Triage+Fix, SARIF/JSON) stand.
++
++### Approved decisions recorded
++- The platform is a **modular, multi‑language** SAST engine.
++- **MVP languages:** Python (backend), JavaScript, TypeScript, HTML.
++- **Future roadmap:** Java, C/C++, Go, .NET, and additional languages.
++- **Evaluation harness is language‑agnostic.**
++- Planned **future** corpora: **OWASP Benchmark (Java)**, **NIST Juliet (C/C++)** — not in the MVP.
++- Each language eventually gets: deterministic analysis, language‑specific rulepacks,
++  evaluation corpora, AI‑assisted triage, AI‑assisted remediation.
++
++### `docs/ARCHITECTURE_v2.3.md`
++- Added a dated **multi‑language amendment** note near the top.
++- §1: added a **Language roadmap** note (Java/C‑C++/Go/.NET future) after the v1 language list.
++- §12 Future Enhancements: added **Additional language support** and **Evaluation corpora
++  (future languages)** rows. Architecture was already multi‑language (Python + JS/TS/HTML) —
++  no schema or component change.
++
++### `docs/PROJECT_PLAN.md` (rev 3)
++- G0.2: reframed corpora as **MVP‑language** known‑answer corpora; harness **language‑agnostic**;
++  OWASP Benchmark (Java) / Juliet (C/C++) marked **future**.
++- Phase 2 step 6 + exit gate: JS/TS/HTML are **in the MVP** (Python first, then breadth);
++  future languages listed. Risk #5 reframed (all four MVP languages in scope; per‑language targets).
++
++### `docs/TASK_BACKLOG.md` (v1.1 → v1.2)
++- MVP Scope: **Language: Python only → Languages: Python, JS, TS, HTML** (modular multi‑language).
++- Phase 2: **moved TASK‑260b (JS), 260c (TS), 260d (HTML) from Post‑MVP/Deferred into the MVP**;
++  updated the Phase 2 exit gate, milestone **M2**, and the risk map to span MVP languages;
++  extended TASK‑290 agent‑skill authoring to JS/TS.
++- Post‑MVP/Deferred: replaced the JS/TS/HTML rows with **future‑language roadmap** rows —
++  **TASK‑260e Java (OWASP Benchmark), 260f C/C++ (Juliet), 260g Go, 260h .NET**.
++- "First two weeks": harness noted as language‑agnostic (MVP corpora Python/JS/TS/HTML).
++
++### `docs/STATE.md`
++- Added a **Language scope** resolved decision; MVP scope line now Python + JS/TS/HTML.
++- Deferred‑beyond‑MVP: JS/TS/HTML removed (now MVP); future languages + their corpora added.
++- Known Issues: flagged the **implementation follow‑up** — the harness `Language` enum
++  (Python‑only) and `eval/corpus_registry.json` (labels OWASP/Juliet as `python`) must be
++  reconciled to the language‑agnostic decision; **no code changed** in this doc pass.
++
++### `docs/AI_DEVELOPMENT_GUIDE.md`
++- §2 source‑of‑truth pointer: **Python‑only → Python + JS/TS/HTML** (multi‑language; roadmap noted).
++
++### Not changed (implementation — deliberately)
++- `eval/harness/models.py` `Language` enum and `eval/corpus_registry.json` left unchanged;
++  reconciling them is a **follow‑up backlog task** (no implementation touched here).
++
++---
++
+ ## [Unreleased] — 2026-07-10
+ 
+ Documentation update applying the **approved Principal‑Architect review** of the task backlog
+diff --git a/docs/PROJECT_PLAN.md b/docs/PROJECT_PLAN.md
+index 3e58e87..bc34e6d 100644
+--- a/docs/PROJECT_PLAN.md
++++ b/docs/PROJECT_PLAN.md
+@@ -1,7 +1,7 @@
+ # AI SAST Platform — Project Plan
+ 
+ **Companion to:** ARCHITECTURE_v2.3.md
+-**Date:** 2026-07-09  (rev 2 — aligned to v2.3 learnable agent skills)
++**Date:** 2026-07-09  (rev 3, 2026‑07‑15 — multi‑language MVP: Python + JS/TS/HTML; rev 2 — aligned to v2.3 learnable agent skills)
+ **Planning basis:** phased, gate-driven, organized around the one genuinely hard,
+ schedule-defining component — the interprocedural taint engine.
+ 
+@@ -59,10 +59,12 @@ The gates here are not paperwork; each one, if skipped, invalidates later work.
+   commercialized (SaaS, enterprise deployment, paid product, or proprietary distribution), the
+   license must be re-evaluated — obtain a commercial grant via akonlabs, or commit to the
+   permissive fallback engine.
+-- **G0.2 Evaluation harness.** Stand up OWASP Benchmark + NIST Juliet + a small curated
+-  internal corpus with known vulnerable/safe labels. Wire a runner that outputs
+-  precision, recall, F1 **per rule and per language**. This is the instrument every
+-  later phase steers by.
++- **G0.2 Evaluation harness.** Stand up known-answer corpora (known vulnerable/safe labels)
++  for the **MVP languages** — Python, JavaScript, TypeScript, HTML — plus a small curated
++  internal corpus. Wire a runner that outputs precision, recall, F1 **per rule and per
++  language**; the harness itself is **language-agnostic**. **OWASP Benchmark (Java)** and
++  **NIST Juliet (C/C++)** are the planned corpora for those **future** languages, not part
++  of the MVP. This is the instrument every later phase steers by.
+   **Build it callable, not batch-only:** the skill learning loop's `eval_gate` (§5.10)
+   must invoke the harness **on demand against a trial skill/rule version** and return
+   precision/recall **deltas vs. the current active version**. Design the interface as a
+@@ -108,12 +110,16 @@ harness after each:
+    for the top CWEs (SQLi, XSS, command injection, path traversal, SSRF, deserialization).
+ 5. **Path materialization** — produce the concrete, explainable source→sink trace that
+    becomes the finding (explainability is the competitive point vs. a black box).
+-6. **Language expansion** — Python first to target quality, then JS/TS (weaker type
+-   resolution → expect lower precision; measure it).
++6. **Language breadth (all in the MVP)** — Python first to target quality, then
++   JavaScript, TypeScript, and HTML (weaker JS/TS type resolution → expect lower
++   precision; set per-language targets and measure). Java, C/C++, Go, and .NET are
++   future roadmap, not MVP.
+ 
+ **Exit gate:** hit agreed precision/recall targets on the eval corpus for the top CWEs
+-in Python, with JS/TS measured and documented (even if lower). *No hand-wavy "done" —
+-the harness number is the gate.*
++across the MVP languages — Python first, then JavaScript, TypeScript, and HTML
++(per-language targets; JS/TS may be lower, measured and documented). *No hand-wavy
++"done" — the harness number is the gate.* Additional languages (Java, C/C++, Go, .NET)
++are future roadmap.
+ 
+ **Parallel authoring (no engineering dependency):** a security engineer drafts the
+ **agent skills** — `common/SKILL.md` and `python/SKILL.md` (+ Django/Flask framework
+@@ -216,7 +222,7 @@ Gate 0 ──> Phase 1 ──> Phase 2 (taint engine) ────────
+ | 2 | **Prompt injection via analyzed source** blinds Triage | Security hole in a security product | Threat model in G0.4; data/instruction separation; trace-required suppression; red-team in Phase 3 |
+ | 3 | GitNexus PolyForm-NC license | Legal/commercial block | G0.1 clears before dependency; pluggable engine keeps Path B/permissive fallback open |
+ | 4 | GitNexus PDG insufficient for target langs | Rework of Phase 2 foundation | G0.3 spike decides Path A vs B before committing |
+-| 5 | JS/TS precision below Python (weak types) | Uneven product quality | Measure and disclose per-language; set separate targets; don't block Python GA on JS parity |
++| 5 | JS/TS precision below Python (weak types) | Uneven product quality | All four MVP languages (Python, JS, TS, HTML) are in scope; harden Python first, set per-language targets, measure and disclose; Java/C‑C++/Go/.NET are future roadmap |
+ | 6 | LLM cost runs away on large repos | Unit economics | Per-scan budget cap + per-agent model routing (cheap model for Triage) from Phase 4 |
+ | 7 | No ground-truth eval → unfalsifiable claims | Can't steer or sell | Same as #1 — the harness is the mitigation and it's Phase 0 |
+ | 8 | Sandbox escape / ZIP bomb on hostile upload | Platform compromise | Isolation + limits in Phase 1; dedicated security review in Phase 5 |
+diff --git a/docs/STATE.md b/docs/STATE.md
+index 52ef759..42c7854 100644
+--- a/docs/STATE.md
++++ b/docs/STATE.md
+@@ -1,6 +1,6 @@
+ # Current Project State
+ 
+-**Updated:** 2026-07-10 (reconciled with ARCHITECTURE_v2.3 + approved review)
++**Updated:** 2026-07-15 (multi-language MVP scope reconciliation; prior: 2026-07-10 ARCHITECTURE_v2.3 + approved review)
+ 
+ ## Resolved Decisions (v1 / MVP)
+ - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
+@@ -10,7 +10,15 @@
+ - **GitNexus licensing (TASK-001D — RESOLVED 2026-07-10):** This is a personal, non-commercial, public GitHub project; GitNexus is used under its PolyForm Noncommercial license, and no commercial use, SaaS offering, paid product, or enterprise deployment is planned at this stage.
+   - **Decision:** GitNexus is approved for the current personal/non-commercial MVP.
+   - **Future Action:** If this project is ever commercialized (SaaS, enterprise deployment, paid product, or proprietary distribution), the GitNexus license must be re-evaluated and either: obtain an appropriate commercial license, or replace GitNexus with an alternative implementation.
+-- **MVP scope:** Python only · Ollama + one cloud provider · Triage + Fix agents · SARIF/JSON export.
++- **Language scope (RECONCILED 2026-07-15):** The platform is designed as a modular,
++  multi-language SAST engine. **MVP languages:** Python (backend), JavaScript, TypeScript,
++  HTML. **Future roadmap:** Java, C/C++, Go, .NET, and additional languages. The evaluation
++  harness stays **language-agnostic**; each language eventually gets deterministic analysis,
++  language-specific rulepacks, an evaluation corpus, AI-assisted triage, and AI-assisted
++  remediation. Planned **future** corpora: OWASP Benchmark (Java) and NIST Juliet (C/C++) —
++  not part of the MVP. This aligns with ARCHITECTURE_v2.3 §1/§4/§5.7/§9 (already multi-language)
++  and supersedes the earlier "Python only" MVP wording.
++- **MVP scope:** Python + JavaScript + TypeScript + HTML · Ollama + one cloud provider · Triage + Fix agents · SARIF/JSON export.
+ 
+ ## Completed (baseline, TASK-001 … TASK-012)
+ - Backend initialized
+@@ -82,6 +90,45 @@ a corpus tree. Still no dataset downloads, no rule/benchmark execution, no metri
+   over the fixture corpus (ok), an invalid root (reported), and a mismatched root (structured
+   missing-file issues) all behaved as designed.
+ 
++## Completed — Evaluation corpora repository layout (TASK-020a, Slice 3 — 2026-07-10)
++Third slice of TASK-020a on branch `feature/task-020a-evaluation-foundation` (awaiting human
++review before merge; not merged to main). Implements the approved **distribution-by-directory**
++corpus layout only — no corpus content authored, no dataset downloads, no runner/metrics/AI.
++
++- **Layout**: `eval/corpus/` split into `committed/` (TRACKED — small, permissively-licensed
++  corpora such as `project-curated`) and `downloaded/` (GIT-IGNORED cache for large/licensed
++  corpora, fetched never vendored). Placeholders: `committed/.gitkeep`, `downloaded/.gitkeep`;
++  obsolete flat `eval/corpus/.gitkeep` removed.
++- **`.gitignore`** reorganized: ignores only `eval/corpus/downloaded/*` (keeps
++  `downloaded/.gitkeep`); everything under `committed/` and all `eval/labels/**` stay tracked.
++- **Deliberately unchanged** (per approval): `CorpusDescriptor`, `corpus_registry.json`, and
++  `eval/README.md` — the registry schema stays as-is until downloaded corpora are actually
++  introduced in a later slice; README reconciliation is deferred to that slice.
++- **DoD gates green** (root `.venv`, harness code unchanged): `ruff` clean; `mypy --strict` clean;
++  `pytest eval/harness/tests` = 44 passed. Manual validation via `git check-ignore`: committed
++  corpus files + both `.gitkeep`s tracked; `downloaded/` corpus data ignored — all as designed.
++
++## Completed — project_curated evaluation corpus (TASK-020a, Slice 4 — 2026-07-10)
++Fourth slice of TASK-020a on branch `feature/task-020a-evaluation-foundation` (awaiting human
++review before merge; not merged to main). Authors the initial in-repo curated corpus. Python
++only; no downloads, no OWASP Benchmark, no Juliet, no rule/benchmark execution, no AI logic.
++
++- **Corpus** (`eval/corpus/committed/project-curated/`): 20 small, realistic, inert Python
++  examples (never imported or executed) across 5 categories — SQL injection (CWE-89), XSS
++  (CWE-79), command injection (CWE-78), path traversal (CWE-22), hardcoded secrets (CWE-798) —
++  each with **2 vulnerable + 2 secure** examples. Each file carries a single `# sast:vuln` /
++  `# sast:safe` marker on the key line.
++- **Labels** (`eval/labels/project-curated.labels.json`): 20 `GroundTruthLabel`s (10 vulnerable,
++  10 safe) with exact `start_line`/`end_line` and per-category CWE, generated from the markers
++  and validated before commit. `CorpusDescriptor`/`corpus_registry.json` unchanged (registry
++  already describes `project_curated`); `eval/README.md` unchanged.
++- **Regression test** (`eval/harness/tests/test_project_curated_corpus.py`): loads the labels via
++  the public loader and asserts the integrity validator passes against the committed corpus, plus
++  the 5×(2+2) category balance — so corpus and labels cannot drift apart.
++- **DoD gates green** (root `.venv`): `ruff check eval/harness` clean; `mypy --strict eval/harness`
++  clean; `pytest eval/harness/tests` = 46 passed (2 new). Manual validator check: 20 labels
++  (10 vulnerable / 10 safe, 2+2 per CWE), validator `ok` with 0 issues; corpus + labels git-tracked.
++
+ ## In Progress
+ - ZIP upload module (TASK-130)
+ 
+@@ -95,21 +142,30 @@ a corpus tree. Still no dataset downloads, no rule/benchmark execution, no metri
+ - Cost tracking + provider config (TASK-430, TASK-360a/b)
+ 
+ ## Deferred beyond MVP
+-Authentication, multi-tenancy, Hunter agent, JS/TS/HTML, cloud providers 3–9, PDF export,
+-full observability (tracing/metrics), webhook/git ingestion, CI/CD gating, SCA scanner,
+-gated skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
++Authentication, multi-tenancy, Hunter agent, **additional languages beyond the MVP set**
++(Java, C/C++, Go, .NET — with OWASP Benchmark/Java and Juliet/C·C++ corpora), cloud providers
++3–9, PDF export, full observability (tracing/metrics), webhook/git ingestion, CI/CD gating,
++SCA scanner, gated skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
+ 
+ ## Known Issues
+ - ~~GitNexus PolyForm-NC license not yet cleared (TASK-001D)~~ — **RESOLVED 2026-07-10:** approved for the personal/non-commercial MVP; re-evaluate only if the project is ever commercialized (see Resolved Decisions → GitNexus licensing).
+ - `docs/SECURITY.md` and `docs/API_SPEC.md` not yet authored (TASK-011R, TASK-012R).
++- **Eval harness language artifacts pending reconciliation (2026-07-15):** the harness
++  `Language` enum is currently Python-only and `eval/corpus_registry.json` labels OWASP
++  Benchmark and NIST Juliet as `python`. Per the multi-language decision the harness must
++  stay **language-agnostic**, and those corpora are **Java** / **C·C++** respectively. These
++  are **implementation** artifacts — left unchanged in this documentation pass; a follow-up
++  backlog task must reconcile them (no code changed here).
+ 
+ ## Current Branch
+-feature/task-020a-evaluation-foundation (TASK-020a Slice 2; awaiting human review before merge)
++feature/task-020a-evaluation-foundation (TASK-020a Slice 4; awaiting human review before merge)
+ 
+ ## Last Completed Task
+-TASK-020a Slice 2 — evaluation-harness label-integrity validator (`validator.py` +
+-`IntegrityReport`/`IntegrityIssue` + tests + fixture corpus) on
++TASK-020a Slice 4 — initial `project_curated` corpus: 20 Python examples (5 CWE categories,
++2 vulnerable + 2 secure each) under `eval/corpus/committed/project-curated/` + validated
++`eval/labels/project-curated.labels.json` + regression test, on
+ `feature/task-020a-evaluation-foundation` (2026-07-10); DoD gates green; awaiting human review
+-before merge. Prior: TASK-020a Slice 1 — ground-truth contract (models + loader + corpus registry).
++before merge. Prior: Slice 3 — corpora repository layout; Slice 2 — label-integrity validator;
++Slice 1 — ground-truth contract.
+ Prior: Engineering Foundation built and runtime-validated (2026-07-10) on
+ `feature/engineering-foundation`. Earlier: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.
+diff --git a/docs/TASK_BACKLOG.md b/docs/TASK_BACKLOG.md
+index 6180073..26718e4 100644
+--- a/docs/TASK_BACKLOG.md
++++ b/docs/TASK_BACKLOG.md
+@@ -2,8 +2,8 @@
+ 
+ **Product:** AI‑Powered SAST Platform
+ **Companion to:** [ARCHITECTURE_v2.3.md](ARCHITECTURE_v2.3.md), [PROJECT_PLAN.md](PROJECT_PLAN.md), [AI_DEVELOPMENT_GUIDE.md](AI_DEVELOPMENT_GUIDE.md)
+-**Version:** 1.1 (post‑review; MVP scope applied)
+-**Date:** 2026-07-10
++**Version:** 1.2 (multi‑language MVP scope reconciliation)
++**Date:** 2026-07-15
+ **Status:** Living document — the single ordered source of "what to build next."
+ 
+ > Derived from the approved architecture (v2.3) and phased plan, updated per the approved
+@@ -24,7 +24,9 @@ Docker Compose. Deterministic‑first philosophy and the GitNexus code‑intelli
+ architecture are **unchanged**.
+ 
+ **In MVP:**
+-- **Language:** Python only.
++- **Languages:** Python, JavaScript, TypeScript, HTML. The platform is designed as a
++  **modular, multi‑language** engine; Python is hardened first for quality, then breadth
++  (JS/TS/HTML) within the MVP. (Matches ARCHITECTURE_v2.3, which is already multi‑language.)
+ - **LLM providers:** Ollama (local, first‑class) **+ one** cloud provider.
+ - **Agents:** Triage + Fix only.
+ - **Delivery:** SARIF + JSON export; results UI with trace viewer.
+@@ -32,8 +34,9 @@ architecture are **unchanged**.
+ - **Security controls ship *with* the feature they protect** (not in a later hardening phase).
+ 
+ **Deferred beyond MVP** (see the consolidated list at the end): authentication, multi‑tenancy,
+-Hunter agent, JS/TS/HTML, cloud providers 3–9, PDF export, full observability (tracing/metrics),
+-webhook/git ingestion channels, CI/CD gating, SCA scanner, the gated skill‑learning loop.
++Hunter agent, **additional languages** (Java, C/C++, Go, .NET — future roadmap), cloud providers
++3–9, PDF export, full observability (tracing/metrics), webhook/git ingestion channels, CI/CD
++gating, SCA scanner, the gated skill‑learning loop.
+ 
+ ---
+ 
+@@ -154,7 +157,7 @@ conventions set (023/024), docs reconciled (010R/010S). Auth/tenancy/deploy **de
+ 
+ ---
+ 
+-## Phase 2 — Interprocedural Taint Engine ⚠ critical path — ✅ MVP (Python)
++## Phase 2 — Interprocedural Taint Engine ⚠ critical path — ✅ MVP (Python, JavaScript, TypeScript, HTML)
+ 
+ > **The product.** Build breadth‑first; **check the eval harness after each capability.** The
+ > hard cross‑function work (TASK‑210) is split so each increment is independently gatable.
+@@ -171,13 +174,17 @@ conventions set (023/024), docs reconciled (010R/010S). Auth/tenancy/deploy **de
+ | TASK‑241 | Rulepack engine + `rulepacks` table + YAML validation endpoint | TODO | P1 | M | ✅ | TASK‑240 |
+ | TASK‑250 | Path materialization → concrete, explainable source→sink trace | TODO | P1 | L | ✅ | TASK‑240 |
+ | TASK‑260a | **Python** hardening to precision/recall targets | TODO | P1 | XL | ✅ | TASK‑250 |
++| TASK‑260b | **JavaScript** support (engine + rulepacks + eval) to targets | TODO | P1 | XL | ✅ | TASK‑260a |
++| TASK‑260c | **TypeScript** support (engine + rulepacks + eval) to targets | TODO | P1 | L | ✅ | TASK‑260b |
++| TASK‑260d | **HTML** support (rulepacks + eval) to targets | TODO | P1 | M | ✅ | TASK‑260a |
+ | TASK‑270 | Pattern matcher + secret scanner (cheap, high‑value) | TODO | P2 | M | ✅ | Phase 1 |
+-| TASK‑290 | Agent‑skills authoring: `common` + `python` (+ Django/Flask) — writing, parallel | TODO | P2 | L | ✅ | — |
++| TASK‑290 | Agent‑skills authoring: `common` + `python`/`javascript`/`typescript` (+ Django/Flask) — writing, parallel | TODO | P2 | L | ✅ | — |
+ 
+-**Top Python CWEs (TASK‑240):** SQLi, XSS, command injection, path traversal, SSRF, deserialization.
++**Top CWEs (TASK‑240), per language:** SQLi, XSS, command injection, path traversal, SSRF, deserialization.
+ **TASK‑290 dependency relaxed:** authoring is writing and starts immediately; only *eval‑checking* a skill needs TASK‑021.
++**Language sequencing:** all four MVP languages ship in v1; harden **Python first**, then extend breadth to JS/TS/HTML (per‑language targets — weaker JS/TS type resolution may set lower thresholds, measured and documented).
+ 
+-**Phase 2 exit gate:** agreed precision/recall targets met on the eval corpus for the top CWEs in **Python**. (JS/TS/HTML deferred — see Post‑MVP.)
++**Phase 2 exit gate:** agreed precision/recall targets met on the eval corpus for the top CWEs across the **MVP languages** — **Python first**, then **JavaScript, TypeScript, HTML** (per‑language targets). Additional languages (Java, C/C++, Go, .NET) are future roadmap — see Post‑MVP.
+ 
+ ---
+ 
+@@ -267,9 +274,10 @@ Preserved IDs; each carries its own security control inline when built.
+ | TASK‑013 | Authentication + admin role (JWT/OAuth2, RBAC) | Decision TASK‑013D: after core scanning MVP |
+ | TASK‑014 | Multi‑tenancy scaffolding (`tenant_id`, per‑org isolation) | Decision TASK‑014D: MVP is single‑tenant |
+ | TASK‑350 | Hunter agent (logic/authz/business‑logic flaws) | Plan: fuzziest/last; Triage delivers core value |
+-| TASK‑260b | JS language support (engine + rulepacks + eval) | Plan: Python first; weaker JS type resolution |
+-| TASK‑260c | TS language support | Post‑MVP GA breadth |
+-| TASK‑260d | HTML support | Post‑MVP GA breadth |
++| TASK‑260e | Java language support (engine + rulepacks + eval; **OWASP Benchmark** corpus) | Future roadmap — beyond the MVP language set |
++| TASK‑260f | C/C++ language support (engine + rulepacks + eval; **NIST Juliet** corpus) | Future roadmap — beyond the MVP language set |
++| TASK‑260g | Go language support (engine + rulepacks + eval) | Future roadmap — beyond the MVP language set |
++| TASK‑260h | .NET language support (engine + rulepacks + eval) | Future roadmap — beyond the MVP language set |
+ | TASK‑360c | Cloud providers 3–9 (Anthropic/OpenAI/Gemini/Azure/OpenRouter/DeepSeek/GLM/Groq set) | MVP = Ollama + one cloud |
+ | TASK‑451 | PDF export (SARIF/JSON is the MVP export) | Gold‑plating for MVP |
+ | TASK‑570 | Full observability stack (Prometheus + OTel tracing + aggregation) | MVP keeps structured logging only (TASK‑113) |
+@@ -292,7 +300,7 @@ recall‑lowering candidates auto‑rejected; versioned + reversible.
+ |-----------|-----------|-----------|
+ | **M0** | Gate 0 passed: license resolved, harness baseline, Path A/B decided, injection defense designed, conventions set, docs reconciled | 001D, 002/003D, 020a‑c/021, 022, 023/024, 010R |
+ | **M1** | Walking skeleton: one real Python finding, end to end, measured; API conventions in place | 190 |
+-| **M2** | Taint engine v1: precision/recall targets met on top Python CWEs — *the* milestone | 260a exit gate |
++| **M2** | Taint engine v1: precision/recall targets met on top CWEs across MVP languages (Python first, then JS/TS/HTML) — *the* milestone | 260a‑d exit gate |
+ | **M3** | Triage cuts FP rate past threshold; injection tests green | 320, 340, 331 |
+ | **M4** | Ollama + one cloud provider flow + per‑scan/agent/model cost live — **MVP complete** | 360a/b, 420a/b, 430, 440 |
+ | **M5** | Security review passed; runs at target concurrency (GA hardening) | 540, 510 |
+@@ -304,7 +312,7 @@ recall‑lowering candidates auto‑rejected; versioned + reversible.
+ 
+ | Risk | Mitigating tasks |
+ |------|-----------------|
+-| Taint engine misses accuracy targets | 020a‑c/021, 160 (narrow slice), 210a‑d + 260a per‑CWE gates |
++| Taint engine misses accuracy targets | 020a‑c/021, 160 (narrow slice), 210a‑d + 260a‑d per‑CWE/per‑language gates |
+ | Prompt injection via analyzed source | 022, 340, 331 |
+ | GitNexus PolyForm‑NC license | 001D (+ Path B/permissive fallback) |
+ | GitNexus PDG insufficient | 002 / 003D spike |
+@@ -319,7 +327,7 @@ recall‑lowering candidates auto‑rejected; versioned + reversible.
+ 
+ ## Recommended first two weeks (updated)
+ 
+-1. **TASK‑020a/b/c + TASK‑021** — the evaluation harness (Python). Nothing is judgeable without it.
++1. **TASK‑020a/b/c + TASK‑021** — the evaluation harness (**language‑agnostic**; MVP corpora for Python, JS, TS, HTML). Nothing is judgeable without it.
+ 2. **TASK‑002 → TASK‑003D** — the GitNexus `--pdg` spike (decides the Phase‑2 foundation).
+ 3. **TASK‑001D** — **RESOLVED:** GitNexus is approved under PolyForm Noncommercial for this personal, non‑commercial MVP; re‑evaluate the license only if the project is ever commercialized.
+ 4. **TASK‑023 / TASK‑024** — lock the testing + migration conventions before the first model/endpoint.

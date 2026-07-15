@@ -1,7 +1,7 @@
 # AI SAST Platform — Project Plan
 
 **Companion to:** ARCHITECTURE_v2.3.md
-**Date:** 2026-07-09  (rev 2 — aligned to v2.3 learnable agent skills)
+**Date:** 2026-07-09  (rev 4, 2026‑07‑15 — finalized version roadmap: v1.0 MVP = Python + Web; v2.0 Java/C‑C++ + OWASP/Juliet; v3.0 Go/C#; rev 2 — aligned to v2.3 learnable agent skills)
 **Planning basis:** phased, gate-driven, organized around the one genuinely hard,
 schedule-defining component — the interprocedural taint engine.
 
@@ -59,10 +59,13 @@ The gates here are not paperwork; each one, if skipped, invalidates later work.
   commercialized (SaaS, enterprise deployment, paid product, or proprietary distribution), the
   license must be re-evaluated — obtain a commercial grant via akonlabs, or commit to the
   permissive fallback engine.
-- **G0.2 Evaluation harness.** Stand up OWASP Benchmark + NIST Juliet + a small curated
-  internal corpus with known vulnerable/safe labels. Wire a runner that outputs
-  precision, recall, F1 **per rule and per language**. This is the instrument every
-  later phase steers by.
+- **G0.2 Evaluation harness.** Stand up known-answer corpora (known vulnerable/safe labels)
+  for the **MVP scope** — **Python** and **Web** (JavaScript/TypeScript/HTML as one capability)
+  — as small **curated, committed** internal corpora. Wire a runner that outputs precision,
+  recall, F1 **per rule and per language**; the harness itself is **language-agnostic**.
+  **OWASP Benchmark (Java)** and **NIST Juliet (C/C++)**, plus the **external corpus fetcher**
+  they need, are **v2.0** — not part of the MVP (whose corpora are committed in-repo, so no
+  fetching is required). This is the instrument every later phase steers by.
   **Build it callable, not batch-only:** the skill learning loop's `eval_gate` (§5.10)
   must invoke the harness **on demand against a trial skill/rule version** and return
   precision/recall **deltas vs. the current active version**. Design the interface as a
@@ -108,12 +111,15 @@ harness after each:
    for the top CWEs (SQLi, XSS, command injection, path traversal, SSRF, deserialization).
 5. **Path materialization** — produce the concrete, explainable source→sink trace that
    becomes the finding (explainability is the competitive point vs. a black box).
-6. **Language expansion** — Python first to target quality, then JS/TS (weaker type
-   resolution → expect lower precision; measure it).
+6. **Capability breadth (in the MVP)** — Python first to target quality, then the **Web**
+   capability (JavaScript/TypeScript/HTML as one unit; weaker JS/TS type resolution → expect
+   lower precision; set targets and measure). **v2.0** adds Java and C/C++ (with the OWASP
+   Benchmark and Juliet corpora); **v3.0** adds Go and C#. These are future roadmap, not MVP.
 
 **Exit gate:** hit agreed precision/recall targets on the eval corpus for the top CWEs
-in Python, with JS/TS measured and documented (even if lower). *No hand-wavy "done" —
-the harness number is the gate.*
+across the MVP scope — Python first, then the Web capability (JS/TS/HTML; may be lower,
+measured and documented). *No hand-wavy "done" — the harness number is the gate.* v2.0
+(Java, C/C++) and v3.0 (Go, C#) are future roadmap.
 
 **Parallel authoring (no engineering dependency):** a security engineer drafts the
 **agent skills** — `common/SKILL.md` and `python/SKILL.md` (+ Django/Flask framework
@@ -216,7 +222,7 @@ Gate 0 ──> Phase 1 ──> Phase 2 (taint engine) ────────�
 | 2 | **Prompt injection via analyzed source** blinds Triage | Security hole in a security product | Threat model in G0.4; data/instruction separation; trace-required suppression; red-team in Phase 3 |
 | 3 | GitNexus PolyForm-NC license | Legal/commercial block | G0.1 clears before dependency; pluggable engine keeps Path B/permissive fallback open |
 | 4 | GitNexus PDG insufficient for target langs | Rework of Phase 2 foundation | G0.3 spike decides Path A vs B before committing |
-| 5 | JS/TS precision below Python (weak types) | Uneven product quality | Measure and disclose per-language; set separate targets; don't block Python GA on JS parity |
+| 5 | JS/TS precision below Python (weak types) | Uneven product quality | MVP scope is Python + Web (JS/TS/HTML); harden Python first, set targets for the Web capability, measure and disclose; v2.0 (Java/C‑C++) and v3.0 (Go/C#) are future roadmap |
 | 6 | LLM cost runs away on large repos | Unit economics | Per-scan budget cap + per-agent model routing (cheap model for Triage) from Phase 4 |
 | 7 | No ground-truth eval → unfalsifiable claims | Can't steer or sell | Same as #1 — the harness is the mitigation and it's Phase 0 |
 | 8 | Sandbox escape / ZIP bomb on hostile upload | Platform compromise | Isolation + limits in Phase 1; dedicated security review in Phase 5 |

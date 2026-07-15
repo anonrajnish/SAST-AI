@@ -26,9 +26,22 @@ _CHECKSUM_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 class Language(StrEnum):
-    """Source language of a corpus. The MVP targets Python only."""
+    """Source language of a corpus.
+
+    Covers the approved multi-language roadmap: the MVP languages (Python,
+    JavaScript, TypeScript, HTML) plus future-roadmap languages (Java, C/C++,
+    Go, C#). The evaluation harness itself is language-agnostic — a corpus
+    declares its language here and the harness privileges none of them.
+    """
 
     PYTHON = "python"
+    JAVASCRIPT = "javascript"
+    TYPESCRIPT = "typescript"
+    HTML = "html"
+    JAVA = "java"
+    CPP = "cpp"
+    GO = "go"
+    CSHARP = "csharp"
 
 
 class CorpusKind(StrEnum):

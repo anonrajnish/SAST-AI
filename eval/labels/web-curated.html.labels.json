@@ -1,0 +1,67 @@
+{
+  "corpus_id": "web_curated_html",
+  "language": "html",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "xss-vuln-1",
+      "corpus_id": "web_curated_html",
+      "language": "html",
+      "location": {
+        "file": "xss/vulnerable.html",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "XSS via javascript: URI in an anchor href"
+    },
+    {
+      "label_id": "xss-safe-1",
+      "corpus_id": "web_curated_html",
+      "language": "html",
+      "location": {
+        "file": "xss/secure.html",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: static same-origin link, no script URI"
+    },
+    {
+      "label_id": "tabnabbing-vuln-1",
+      "corpus_id": "web_curated_html",
+      "language": "html",
+      "location": {
+        "file": "tabnabbing/vulnerable.html",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Reverse tabnabbing: target=_blank without rel=noopener"
+    },
+    {
+      "label_id": "tabnabbing-safe-1",
+      "corpus_id": "web_curated_html",
+      "language": "html",
+      "location": {
+        "file": "tabnabbing/secure.html",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: rel=noopener noreferrer prevents opener access"
+    }
+  ]
+}

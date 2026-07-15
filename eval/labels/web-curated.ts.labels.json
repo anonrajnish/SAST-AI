@@ -1,0 +1,67 @@
+{
+  "corpus_id": "web_curated_ts",
+  "language": "typescript",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "dom_xss-vuln-1",
+      "corpus_id": "web_curated_ts",
+      "language": "typescript",
+      "location": {
+        "file": "dom_xss/vulnerable.ts",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "DOM-based XSS: query parameter written to innerHTML"
+    },
+    {
+      "label_id": "dom_xss-safe-1",
+      "corpus_id": "web_curated_ts",
+      "language": "typescript",
+      "location": {
+        "file": "dom_xss/secure.ts",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: query parameter written via textContent"
+    },
+    {
+      "label_id": "hardcoded_secrets-vuln-1",
+      "corpus_id": "web_curated_ts",
+      "language": "typescript",
+      "location": {
+        "file": "hardcoded_secrets/vulnerable.ts",
+        "start_line": 2,
+        "end_line": 2
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-798",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Hardcoded secret embedded in client-side source"
+    },
+    {
+      "label_id": "hardcoded_secrets-safe-1",
+      "corpus_id": "web_curated_ts",
+      "language": "typescript",
+      "location": {
+        "file": "hardcoded_secrets/secure.ts",
+        "start_line": 2,
+        "end_line": 2
+      },
+      "verdict": "safe",
+      "cwe": "CWE-798",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: secret injected from build-time configuration"
+    }
+  ]
+}

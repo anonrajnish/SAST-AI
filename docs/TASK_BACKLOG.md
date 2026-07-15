@@ -2,8 +2,8 @@
 
 **Product:** AI‑Powered SAST Platform
 **Companion to:** [ARCHITECTURE_v2.3.md](ARCHITECTURE_v2.3.md), [PROJECT_PLAN.md](PROJECT_PLAN.md), [AI_DEVELOPMENT_GUIDE.md](AI_DEVELOPMENT_GUIDE.md)
-**Version:** 1.1 (post‑review; MVP scope applied)
-**Date:** 2026-07-10
+**Version:** 1.3 (finalized version roadmap: v1.0 MVP = Python + Web)
+**Date:** 2026-07-15
 **Status:** Living document — the single ordered source of "what to build next."
 
 > Derived from the approved architecture (v2.3) and phased plan, updated per the approved
@@ -23,8 +23,21 @@ The MVP is the **core deterministic scanning engine, end to end**, single‑tena
 Docker Compose. Deterministic‑first philosophy and the GitNexus code‑intelligence
 architecture are **unchanged**.
 
-**In MVP:**
-- **Language:** Python only.
+### Version roadmap (finalized)
+
+| Version | Scope |
+|---------|-------|
+| **v1.0 (MVP)** | **Backend:** Python. **Web:** JavaScript + TypeScript + HTML, treated as a **single "Web" analysis capability** for planning. |
+| **v2.0** | **Java**, **C/C++**, plus their known‑answer corpora **OWASP Benchmark** (Java) and **NIST Juliet** (C/C++) — and the **external corpus fetcher** those corpora require. |
+| **v3.0** | **Go**, **C#**. |
+
+Only **v1.0** is in the MVP. The v2.0/v3.0 languages, the **OWASP Benchmark** and **Juliet**
+corpora, and the **external corpus fetcher** are **out of the MVP** (see Post‑MVP / Deferred).
+
+**In MVP (v1.0):**
+- **Languages:** **Python** (backend) + **Web** — JavaScript, TypeScript, and HTML treated as a
+  **single "Web" analysis capability** for planning. Python is hardened first for quality, then
+  the Web capability, within v1.0.
 - **LLM providers:** Ollama (local, first‑class) **+ one** cloud provider.
 - **Agents:** Triage + Fix only.
 - **Delivery:** SARIF + JSON export; results UI with trace viewer.
@@ -32,8 +45,10 @@ architecture are **unchanged**.
 - **Security controls ship *with* the feature they protect** (not in a later hardening phase).
 
 **Deferred beyond MVP** (see the consolidated list at the end): authentication, multi‑tenancy,
-Hunter agent, JS/TS/HTML, cloud providers 3–9, PDF export, full observability (tracing/metrics),
-webhook/git ingestion channels, CI/CD gating, SCA scanner, the gated skill‑learning loop.
+Hunter agent, **v2.0 languages/corpora** (Java, C/C++, OWASP Benchmark, Juliet, and the external
+corpus fetcher) and **v3.0 languages** (Go, C#), cloud providers 3–9, PDF export, full
+observability (tracing/metrics), webhook/git ingestion channels, CI/CD gating, SCA scanner, the
+gated skill‑learning loop.
 
 ---
 
@@ -98,7 +113,7 @@ TASK‑013D, TASK‑014D, TASK‑015D, TASK‑001D **resolved**. TASK‑003D, TA
 | ID | Title | Status | Pri | Effort | MVP | Depends on |
 |----|-------|--------|-----|--------|-----|-----------|
 | TASK‑002 | GitNexus `--pdg` spike on 3–5 Python repos | TODO | P0 | L | ✅ | TASK‑001D |
-| TASK‑020a | Eval corpus acquisition + labeling (OWASP Bench, Juliet, curated internal) | TODO | P0 | L | ✅ | TASK‑010R |
+| TASK‑020a | Eval corpus + labeling — **MVP scope: curated internal corpora (Python + Web)**; OWASP Benchmark, Juliet & the external fetcher → **v2.0** | TODO | P0 | L | ✅ | TASK‑010R |
 | TASK‑020b | Eval runner (execute rules over corpus) | TODO | P0 | M | ✅ | TASK‑020a |
 | TASK‑020c | Metrics reporter: precision/recall/F1 **per rule & per language** | TODO | P0 | M | ✅ | TASK‑020b |
 | TASK‑021 | Callable eval interface (per‑candidate deltas vs active version) | TODO | P0 | M | ✅ | TASK‑020c |
@@ -110,7 +125,7 @@ TASK‑013D, TASK‑014D, TASK‑015D, TASK‑001D **resolved**. TASK‑003D, TA
 | TASK‑032 | Remove default/hardcoded credentials from `.env.example` & compose | TODO | P1 | S | ✅ | TASK‑030 |
 | TASK‑033 | **[REVIEW +NEW]** GitNexus image signature verification (cosign) + pinned tag | TODO | P2 | S | ✅ | TASK‑030 |
 
-**TASK‑020a/b/c — Eval harness (split from TASK‑020).** The measuring instrument; MVP targets Python.
+**TASK‑020a/b/c — Eval harness (split from TASK‑020).** The measuring instrument; MVP corpora cover **Python + Web** (curated, committed in‑repo). The **external fetcher + OWASP Benchmark (Java) + Juliet (C/C++)** are **v2.0** (large/licensed, fetched‑never‑vendored) — not required for the MVP, whose corpora are committed. Remaining MVP TASK‑020a work: author the **curated Web corpus** (Python curated corpus already committed).
 **TASK‑021 — Callable interface.** Library/service call returning precision/recall **deltas** vs. the active version (needed later by the deferred learning loop; the interface is built now so it isn't refactored).
 **TASK‑031 — now also owns fail‑closed KEK.** `from_secret()` must reject a short/invalid KEK (no silent `ljust` padding). AES‑GCM AAD + rotation remain in TASK‑411 (Phase 4, with custody).
 
@@ -154,7 +169,7 @@ conventions set (023/024), docs reconciled (010R/010S). Auth/tenancy/deploy **de
 
 ---
 
-## Phase 2 — Interprocedural Taint Engine ⚠ critical path — ✅ MVP (Python)
+## Phase 2 — Interprocedural Taint Engine ⚠ critical path — ✅ MVP (Python + Web)
 
 > **The product.** Build breadth‑first; **check the eval harness after each capability.** The
 > hard cross‑function work (TASK‑210) is split so each increment is independently gatable.
@@ -171,13 +186,15 @@ conventions set (023/024), docs reconciled (010R/010S). Auth/tenancy/deploy **de
 | TASK‑241 | Rulepack engine + `rulepacks` table + YAML validation endpoint | TODO | P1 | M | ✅ | TASK‑240 |
 | TASK‑250 | Path materialization → concrete, explainable source→sink trace | TODO | P1 | L | ✅ | TASK‑240 |
 | TASK‑260a | **Python** hardening to precision/recall targets | TODO | P1 | XL | ✅ | TASK‑250 |
+| TASK‑260b | **Web** support — JavaScript/TypeScript/HTML as one capability (engine + rulepacks + eval) to targets | TODO | P1 | XL | ✅ | TASK‑260a |
 | TASK‑270 | Pattern matcher + secret scanner (cheap, high‑value) | TODO | P2 | M | ✅ | Phase 1 |
-| TASK‑290 | Agent‑skills authoring: `common` + `python` (+ Django/Flask) — writing, parallel | TODO | P2 | L | ✅ | — |
+| TASK‑290 | Agent‑skills authoring: `common` + `python`/`javascript`/`typescript` (+ Django/Flask) — writing, parallel | TODO | P2 | L | ✅ | — |
 
-**Top Python CWEs (TASK‑240):** SQLi, XSS, command injection, path traversal, SSRF, deserialization.
+**Top CWEs (TASK‑240), per language:** SQLi, XSS, command injection, path traversal, SSRF, deserialization.
 **TASK‑290 dependency relaxed:** authoring is writing and starts immediately; only *eval‑checking* a skill needs TASK‑021.
+**Capability sequencing:** the MVP ships **Python + Web**; harden **Python first**, then the **Web** capability (JS/TS/HTML as one unit — weaker JS/TS type resolution may set lower thresholds, measured and documented). TASK‑260b consolidates the former per‑language JS/TS/HTML tasks (old TASK‑260c/260d folded into 260b as "Web").
 
-**Phase 2 exit gate:** agreed precision/recall targets met on the eval corpus for the top CWEs in **Python**. (JS/TS/HTML deferred — see Post‑MVP.)
+**Phase 2 exit gate:** agreed precision/recall targets met on the eval corpus for the top CWEs across the **MVP scope** — **Python first**, then the **Web** capability (JS/TS/HTML). v2.0 (Java, C/C++) and v3.0 (Go, C#) are future roadmap — see Post‑MVP.
 
 ---
 
@@ -267,9 +284,13 @@ Preserved IDs; each carries its own security control inline when built.
 | TASK‑013 | Authentication + admin role (JWT/OAuth2, RBAC) | Decision TASK‑013D: after core scanning MVP |
 | TASK‑014 | Multi‑tenancy scaffolding (`tenant_id`, per‑org isolation) | Decision TASK‑014D: MVP is single‑tenant |
 | TASK‑350 | Hunter agent (logic/authz/business‑logic flaws) | Plan: fuzziest/last; Triage delivers core value |
-| TASK‑260b | JS language support (engine + rulepacks + eval) | Plan: Python first; weaker JS type resolution |
-| TASK‑260c | TS language support | Post‑MVP GA breadth |
-| TASK‑260d | HTML support | Post‑MVP GA breadth |
+| TASK‑260e | Java language support (engine + rulepacks + eval) | **v2.0** language |
+| TASK‑260f | C/C++ language support (engine + rulepacks + eval) | **v2.0** language |
+| TASK‑020a‑F | External corpus fetcher (download + checksum verify into `eval/corpus/downloaded/`) | **v2.0** — enables OWASP/Juliet; MVP corpora are committed, so not needed for MVP. Was remaining TASK‑020a work. |
+| TASK‑020a‑J | OWASP Benchmark (Java) acquisition + labels (uses TASK‑020a‑F) | **v2.0** corpus (pairs with TASK‑260e). Was remaining TASK‑020a work. |
+| TASK‑020a‑C | NIST Juliet (C/C++) acquisition + labels (uses TASK‑020a‑F) | **v2.0** corpus (pairs with TASK‑260f). Was remaining TASK‑020a work. |
+| TASK‑260g | Go language support (engine + rulepacks + eval) | **v3.0** language |
+| TASK‑260h | C# language support (engine + rulepacks + eval) | **v3.0** language (was ".NET") |
 | TASK‑360c | Cloud providers 3–9 (Anthropic/OpenAI/Gemini/Azure/OpenRouter/DeepSeek/GLM/Groq set) | MVP = Ollama + one cloud |
 | TASK‑451 | PDF export (SARIF/JSON is the MVP export) | Gold‑plating for MVP |
 | TASK‑570 | Full observability stack (Prometheus + OTel tracing + aggregation) | MVP keeps structured logging only (TASK‑113) |
@@ -292,7 +313,7 @@ recall‑lowering candidates auto‑rejected; versioned + reversible.
 |-----------|-----------|-----------|
 | **M0** | Gate 0 passed: license resolved, harness baseline, Path A/B decided, injection defense designed, conventions set, docs reconciled | 001D, 002/003D, 020a‑c/021, 022, 023/024, 010R |
 | **M1** | Walking skeleton: one real Python finding, end to end, measured; API conventions in place | 190 |
-| **M2** | Taint engine v1: precision/recall targets met on top Python CWEs — *the* milestone | 260a exit gate |
+| **M2** | Taint engine v1: precision/recall targets met on top CWEs across the MVP scope (Python first, then Web) — *the* milestone | 260a‑b exit gate |
 | **M3** | Triage cuts FP rate past threshold; injection tests green | 320, 340, 331 |
 | **M4** | Ollama + one cloud provider flow + per‑scan/agent/model cost live — **MVP complete** | 360a/b, 420a/b, 430, 440 |
 | **M5** | Security review passed; runs at target concurrency (GA hardening) | 540, 510 |
@@ -304,7 +325,7 @@ recall‑lowering candidates auto‑rejected; versioned + reversible.
 
 | Risk | Mitigating tasks |
 |------|-----------------|
-| Taint engine misses accuracy targets | 020a‑c/021, 160 (narrow slice), 210a‑d + 260a per‑CWE gates |
+| Taint engine misses accuracy targets | 020a‑c/021, 160 (narrow slice), 210a‑d + 260a‑b per‑CWE/per‑capability gates |
 | Prompt injection via analyzed source | 022, 340, 331 |
 | GitNexus PolyForm‑NC license | 001D (+ Path B/permissive fallback) |
 | GitNexus PDG insufficient | 002 / 003D spike |
@@ -319,7 +340,7 @@ recall‑lowering candidates auto‑rejected; versioned + reversible.
 
 ## Recommended first two weeks (updated)
 
-1. **TASK‑020a/b/c + TASK‑021** — the evaluation harness (Python). Nothing is judgeable without it.
+1. **TASK‑020a/b/c + TASK‑021** — the evaluation harness (**language‑agnostic**; MVP corpora for **Python + Web**). Nothing is judgeable without it.
 2. **TASK‑002 → TASK‑003D** — the GitNexus `--pdg` spike (decides the Phase‑2 foundation).
 3. **TASK‑001D** — **RESOLVED:** GitNexus is approved under PolyForm Noncommercial for this personal, non‑commercial MVP; re‑evaluate the license only if the project is ever commercialized.
 4. **TASK‑023 / TASK‑024** — lock the testing + migration conventions before the first model/endpoint.

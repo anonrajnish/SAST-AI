@@ -1,0 +1,307 @@
+{
+  "corpus_id": "project_curated",
+  "language": "python",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "command_injection-safe-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "command_injection/secure_1.py",
+        "start_line": 6,
+        "end_line": 6
+      },
+      "verdict": "safe",
+      "cwe": "CWE-78",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "command_injection safe example"
+    },
+    {
+      "label_id": "command_injection-safe-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "command_injection/secure_2.py",
+        "start_line": 6,
+        "end_line": 6
+      },
+      "verdict": "safe",
+      "cwe": "CWE-78",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "command_injection safe example"
+    },
+    {
+      "label_id": "command_injection-vuln-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "command_injection/vulnerable_1.py",
+        "start_line": 6,
+        "end_line": 6
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-78",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "command_injection vulnerable example"
+    },
+    {
+      "label_id": "command_injection-vuln-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "command_injection/vulnerable_2.py",
+        "start_line": 6,
+        "end_line": 6
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-78",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "command_injection vulnerable example"
+    },
+    {
+      "label_id": "hardcoded_secrets-safe-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "hardcoded_secrets/secure_1.py",
+        "start_line": 6,
+        "end_line": 6
+      },
+      "verdict": "safe",
+      "cwe": "CWE-798",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "hardcoded_secrets safe example"
+    },
+    {
+      "label_id": "hardcoded_secrets-safe-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "hardcoded_secrets/secure_2.py",
+        "start_line": 6,
+        "end_line": 6
+      },
+      "verdict": "safe",
+      "cwe": "CWE-798",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "hardcoded_secrets safe example"
+    },
+    {
+      "label_id": "hardcoded_secrets-vuln-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "hardcoded_secrets/vulnerable_1.py",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-798",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "hardcoded_secrets vulnerable example"
+    },
+    {
+      "label_id": "hardcoded_secrets-vuln-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "hardcoded_secrets/vulnerable_2.py",
+        "start_line": 4,
+        "end_line": 4
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-798",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "hardcoded_secrets vulnerable example"
+    },
+    {
+      "label_id": "path_traversal-safe-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "path_traversal/secure_1.py",
+        "start_line": 8,
+        "end_line": 8
+      },
+      "verdict": "safe",
+      "cwe": "CWE-22",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "path_traversal safe example"
+    },
+    {
+      "label_id": "path_traversal-safe-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "path_traversal/secure_2.py",
+        "start_line": 6,
+        "end_line": 6
+      },
+      "verdict": "safe",
+      "cwe": "CWE-22",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "path_traversal safe example"
+    },
+    {
+      "label_id": "path_traversal-vuln-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "path_traversal/vulnerable_1.py",
+        "start_line": 6,
+        "end_line": 6
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-22",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "path_traversal vulnerable example"
+    },
+    {
+      "label_id": "path_traversal-vuln-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "path_traversal/vulnerable_2.py",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-22",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "path_traversal vulnerable example"
+    },
+    {
+      "label_id": "sql_injection-safe-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "sql_injection/secure_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-89",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "sql_injection safe example"
+    },
+    {
+      "label_id": "sql_injection-safe-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "sql_injection/secure_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-89",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "sql_injection safe example"
+    },
+    {
+      "label_id": "sql_injection-vuln-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "sql_injection/vulnerable_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-89",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "sql_injection vulnerable example"
+    },
+    {
+      "label_id": "sql_injection-vuln-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "sql_injection/vulnerable_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-89",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "sql_injection vulnerable example"
+    },
+    {
+      "label_id": "xss-safe-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "xss/secure_1.py",
+        "start_line": 8,
+        "end_line": 8
+      },
+      "verdict": "safe",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "xss safe example"
+    },
+    {
+      "label_id": "xss-safe-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "xss/secure_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "xss safe example"
+    },
+    {
+      "label_id": "xss-vuln-1",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "xss/vulnerable_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "xss vulnerable example"
+    },
+    {
+      "label_id": "xss-vuln-2",
+      "corpus_id": "project_curated",
+      "language": "python",
+      "location": {
+        "file": "xss/vulnerable_2.py",
+        "start_line": 8,
+        "end_line": 8
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "xss vulnerable example"
+    }
+  ]
+}

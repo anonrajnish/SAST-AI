@@ -68,6 +68,9 @@ def test_shipped_corpus_registry_is_valid() -> None:
         "owasp_benchmark",
         "nist_juliet",
         "project_curated",
+        "web_curated_js",
+        "web_curated_ts",
+        "web_curated_html",
     }
 
 

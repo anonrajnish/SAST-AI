@@ -29,9 +29,13 @@ frontend/.vite/
 *.key
 /run/secrets/
 
-# ---- Eval corpora (fetched, never vendored — see eval/README.md) ----
-eval/corpus/*
-!eval/corpus/.gitkeep
+# ---- Eval corpora --------------------------------------------------
+# Corpora are split by distribution policy at the directory level:
+#   eval/corpus/committed/**  -> TRACKED   (small, permissively-licensed corpora)
+#   eval/corpus/downloaded/** -> IGNORED   (large/licensed corpora; fetched, never vendored)
+# Ground-truth labels (eval/labels/**) are always tracked.
+eval/corpus/downloaded/*
+!eval/corpus/downloaded/.gitkeep
 
 # ---- Editor / OS ----
 .DS_Store

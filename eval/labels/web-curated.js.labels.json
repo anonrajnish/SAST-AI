@@ -1,0 +1,67 @@
+{
+  "corpus_id": "web_curated_js",
+  "language": "javascript",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "dom_xss-vuln-1",
+      "corpus_id": "web_curated_js",
+      "language": "javascript",
+      "location": {
+        "file": "dom_xss/vulnerable.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "DOM-based XSS: location.hash written to innerHTML"
+    },
+    {
+      "label_id": "dom_xss-safe-1",
+      "corpus_id": "web_curated_js",
+      "language": "javascript",
+      "location": {
+        "file": "dom_xss/secure.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-79",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: same input written via textContent"
+    },
+    {
+      "label_id": "eval_injection-vuln-1",
+      "corpus_id": "web_curated_js",
+      "language": "javascript",
+      "location": {
+        "file": "eval_injection/vulnerable.js",
+        "start_line": 4,
+        "end_line": 4
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-95",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Eval injection: untrusted expression passed to eval()"
+    },
+    {
+      "label_id": "eval_injection-safe-1",
+      "corpus_id": "web_curated_js",
+      "language": "javascript",
+      "location": {
+        "file": "eval_injection/secure.js",
+        "start_line": 4,
+        "end_line": 4
+      },
+      "verdict": "safe",
+      "cwe": "CWE-95",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: untrusted input parsed with JSON.parse"
+    }
+  ]
+}

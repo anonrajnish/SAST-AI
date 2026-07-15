@@ -33,8 +33,10 @@ Before making any code changes always read the following documents:
 6. docs/SECURITY.md (if applicable — to be authored, TASK-011R)
 
 The **MVP scope and all resolved product decisions** (single-tenant, auth deferred,
-Python-only, Ollama + one cloud provider, Docker Compose) live in docs/TASK_BACKLOG.md
-and docs/STATE.md. Do not exceed MVP scope without a backlog task authorizing it.
+MVP languages **Python + JavaScript + TypeScript + HTML** — a modular, multi-language
+platform, with Java/C·C++/Go/.NET on the future roadmap — Ollama + one cloud provider,
+Docker Compose) live in docs/TASK_BACKLOG.md and docs/STATE.md. Do not exceed MVP scope
+without a backlog task authorizing it.
 
 Never invent requirements.
 

@@ -5,26 +5,26 @@
       "id": "owasp_benchmark",
       "name": "OWASP Benchmark",
       "kind": "owasp_benchmark",
-      "language": "python",
+      "language": "java",
       "license": "GPL-2.0-or-later",
       "homepage": "https://owasp.org/www-project-benchmark/",
       "source_ref": null,
       "checksum": null,
       "local_path": "owasp-benchmark",
       "labels_path": "owasp-benchmark.labels.json",
-      "notes": "Corpus data is fetched in a later TASK-020a slice, not committed."
+      "notes": "Java corpus. Future roadmap (post-MVP); descriptor only, not part of the MVP."
     },
     {
       "id": "nist_juliet",
       "name": "NIST Juliet",
       "kind": "nist_juliet",
-      "language": "python",
+      "language": "cpp",
       "license": "NIST-PD",
       "source_ref": null,
       "checksum": null,
       "local_path": "nist-juliet",
       "labels_path": "nist-juliet.labels.json",
-      "notes": "Corpus data is fetched in a later TASK-020a slice, not committed."
+      "notes": "C/C++ corpus (recorded as cpp). Future roadmap (post-MVP); descriptor only, not part of the MVP."
     },
     {
       "id": "project_curated",
@@ -37,6 +37,42 @@
       "local_path": "project-curated",
       "labels_path": "project-curated.labels.json",
       "notes": "Small in-repo curated cases; labels authored in a later TASK-020a slice."
+    },
+    {
+      "id": "web_curated_js",
+      "name": "Web Curated (JavaScript)",
+      "kind": "project_curated",
+      "language": "javascript",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "web-curated/javascript",
+      "labels_path": "web-curated.js.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated Web (JavaScript) cases; part of the MVP 'Web' capability."
+    },
+    {
+      "id": "web_curated_ts",
+      "name": "Web Curated (TypeScript)",
+      "kind": "project_curated",
+      "language": "typescript",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "web-curated/typescript",
+      "labels_path": "web-curated.ts.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated Web (TypeScript) cases; part of the MVP 'Web' capability."
+    },
+    {
+      "id": "web_curated_html",
+      "name": "Web Curated (HTML)",
+      "kind": "project_curated",
+      "language": "html",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "web-curated/html",
+      "labels_path": "web-curated.html.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated Web (HTML) cases; part of the MVP 'Web' capability."
     }
   ]
 }

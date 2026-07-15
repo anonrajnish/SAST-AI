@@ -52,6 +52,21 @@ def test_valid_label_construction() -> None:
     assert label.cwe == "CWE-89"
 
 
+def test_label_accepts_roadmap_language() -> None:
+    label = _label(language="javascript")
+    assert label.language is Language.JAVASCRIPT
+
+
+def test_descriptor_accepts_roadmap_language() -> None:
+    descriptor = _descriptor(language="java")
+    assert descriptor.language is Language.JAVA
+
+
+def test_label_rejects_unsupported_language() -> None:
+    with pytest.raises(ValidationError):
+        _label(language="kotlin")
+
+
 def test_label_rejects_bad_cwe() -> None:
     with pytest.raises(ValidationError):
         _label(cwe="89")

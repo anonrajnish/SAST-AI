@@ -4,6 +4,15 @@
 **Date:** 2026-07-09  
 **Status:** Updated Architecture -- Agentic AI + Deterministic Detection + GitNexus + Cost Tracking + Learnable Agent Skills
 
+> **Amendment (2026-07-15) -- multi-language scope reconciliation:** This platform is a
+> **modular, multi-language** SAST engine. **MVP languages:** Python, JavaScript, TypeScript,
+> HTML (already reflected in §1, §4, §5.7, §9). **Future roadmap:** Java, C/C++, Go, .NET, and
+> additional languages -- each gaining deterministic analysis, language-specific rulepacks, an
+> evaluation corpus, AI-assisted triage, and AI-assisted remediation as it lands. The
+> **evaluation harness is language-agnostic**; **OWASP Benchmark (Java)** and **NIST Juliet
+> (C/C++)** are planned corpora for those future languages, not the MVP. See §12. No
+> implementation or schema was changed by this amendment.
+
 > **v2.1 changes (baked in, no manual edits needed):**
 > - Replaced **Graphify** with **GitNexus** (github.com/abhigyanpatwari/GitNexus) as the offline code-intelligence engine.
 > - GitNexus supplies structure + framework modeling (`routes` = taint sources, `orm` = sinks) + an **experimental intra-procedural PDG** (`gitnexus analyze --pdg`).
@@ -73,6 +82,10 @@ An agentic AI-powered Static Application Security Testing (SAST) platform for Py
 - Python 2, Python 3
 - JavaScript, TypeScript
 - HTML
+
+> **Language roadmap:** the detection stack (rulepacks, taint models, agent skills) is
+> organized per language so new languages plug in without re-architecting. **Java, C/C++,
+> Go, and .NET** are planned future additions beyond v1 (see §12).
 
 ### No login/auth in v1 -- can be added later.
 
@@ -1833,6 +1846,8 @@ networks:
 | **Skill eval-gate automation** | Auto-run the eval harness on every learning candidate; surface precision/recall deltas in the review queue | High |
 | **Per-org private skills** | Tenant-scoped agent skills + private eval corpora so learning stays isolated | Medium |
 | **Upstream taint models** | Extend GitNexus's Python/Java source-sink models for more frameworks | Medium |
+| **Additional language support** | Per-language rulepacks + taint models + agent skills + eval corpora for **Java, C/C++, Go, .NET** (modular; no re-architecture) | High |
+| **Evaluation corpora (future languages)** | **OWASP Benchmark** (Java) and **NIST Juliet** (C/C++) as known-answer corpora for those languages; harness stays language-agnostic | Medium |
 | **Path B unified store** | Optionally export GitNexus graph into Neo4j for single-Cypher queries across structure + dataflow | Low |
 | **False Positive Learning** | Agent feedback loop to improve triage | Medium |
 | **Custom Agent Prompts** | User-defined agent behaviors | Medium |
