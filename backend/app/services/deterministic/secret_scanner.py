@@ -1,28 +1,20 @@
-"""Hardcoded-secret scanner — the first deterministic analyzer.
+"""Hardcoded-secret scanner — the first deterministic analyzer (CWE-798).
 
-Wraps the reusable scanning foundation (:mod:`app.services.deterministic.rules`)
-with the hardcoded-secret rule pack and exposes the evaluation harness's
-``Detector`` interface (``scan(corpus_root) -> list[Finding]``), so the harness can
-score it via ``evaluate_corpus``. Deterministic, read-only, no data-flow/taint/AI.
-Findings carry only file, location, rule id, and CWE — never the matched secret.
+Reuses :class:`PatternAnalyzer` unchanged and differs only by its rule pack (the
+hardcoded-secret rules). Exposes the evaluation harness's ``Detector`` interface so
+the harness can score it via ``evaluate_corpus``. Deterministic, read-only, no
+data-flow/taint/AI. Findings carry only file, location, rule id, and CWE — never the
+matched secret value.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from eval.harness.runner import Finding
-
-from .rules import scan_tree
+from .analyzer import PatternAnalyzer
 from .secret_rules import SECRET_RULES
 
-_DETECTOR_NAME = "secret-scanner"
 
-
-class SecretScanner:
+class SecretScanner(PatternAnalyzer):
     """Deterministic hardcoded-secret analyzer (satisfies the ``Detector`` protocol)."""
 
-    def scan(self, corpus_root: Path) -> list[Finding]:
-        """Return hardcoded-secret findings for the tree under ``corpus_root``."""
-
-        return scan_tree(corpus_root, SECRET_RULES, detector_name=_DETECTOR_NAME)
+    def __init__(self) -> None:
+        super().__init__(SECRET_RULES, "secret-scanner")

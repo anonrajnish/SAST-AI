@@ -313,15 +313,46 @@ data-flow / AI.** The eval harness (`eval/harness/*`) is unchanged.
   `project_curated` → TP=2/FP=0/FN=8, **P=1.0, R=0.2** (misses other CWE classes by design; env-read
   safe examples correctly not flagged). Corresponds to backlog TASK-270 (secret/pattern scanner).
 
+## MVP deterministic analyzer roadmap (approved 2026-07-17)
+Pattern-based, high-confidence analyzers only (no taint/interprocedural/data-flow/AI), each paired
+with a small curated corpus (2 vulnerable + 2 safe). Order: **#1 Hardcoded secrets (CWE-798) ✅ →
+#2 Dynamic code execution (CWE-95) ✅ → #3 Reverse tabnabbing (CWE-1022) → #4 Weak cryptography
+(CWE-327/328) → #5 Insecure transport / TLS-verify-off (CWE-319/295) → #6 Insecure deserialization
+(CWE-502)**. The **partial DOM-XSS detector was deliberately dropped** — CWE-79 (and SQLi/CWE-89,
+command injection/CWE-78, path traversal/CWE-22, SSRF/CWE-918) are owned by the future taint engine
+(Phase 2: TASK-210/240/250/260), not by lower-precision pattern rules.
+
+## Completed — Second deterministic analyzer: dynamic code execution + PatternAnalyzer (2026-07-17)
+Roadmap item #2 (CWE-95/94), under `backend/app/services/deterministic/`. Introduces the reusable
+`PatternAnalyzer` abstraction so analyzers differ only by their `PatternRule` list. **Deterministic
+only; no taint/interprocedural/data-flow/AI.** Harness logic (`eval/harness/*` models/loader/
+validator/runner/evaluation/metrics/interface) unchanged; only corpus data + the loader id-set test
+were touched.
+
+- **Reusable `PatternAnalyzer`** (`.../deterministic/analyzer.py`): a `Detector` implementation
+  parameterized by a rule list + name; `SecretScanner` (CWE-798) was **refactored** to subclass it,
+  and `CodeExecutionScanner` (CWE-95) is a second subclass — both differ only by their rulepack.
+- **Code-execution rulepack** (`.../deterministic/code_execution_rules.py`): high-confidence
+  dangerous-API rules — Python `eval`/`exec`, JS/TS `eval` / `new Function` — with a look-behind that
+  excludes method-qualified safe forms (e.g. `ast.literal_eval`, `JSON.parse`).
+- **Curated corpus** (`eval/corpus/committed/code-exec-curated/python/`, 2 vuln + 2 safe, CWE-95) +
+  labels (`eval/labels/code-exec-curated.py.labels.json`) + registry descriptor `code_exec_py` +
+  an eval regression test (`test_code_exec_corpus.py`); `test_loader.py` id-set updated.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (21 files), `pytest` = **35 passed**, coverage
+  **99.00%** (gate 80%); eval harness `ruff`/`mypy --strict` clean (22 files), `pytest` = **94 passed**.
+  Manual validation via `evaluate_corpus`: `code_exec_py` → TP=2/FP=0/FN=0, **P=1.0, R=1.0**;
+  `web_curated_js` → TP=1/FP=0/FN=1, **P=1.0, R=0.5**; refactored `SecretScanner` behaviour unchanged
+  (`project_curated` P=1.0, R=0.2).
+
 ## In Progress
 - ZIP upload module (TASK-130)
 
 ## Pending (next up — MVP critical path)
-- Evaluation harness: **TASK-020a/b/c + TASK-021 complete**; **first deterministic analyzer
-  (hardcoded-secret scanner, CWE-798) complete** and pipeline-validated. Deferred within the harness:
-  candidate-vs-baseline deltas (Phase 4b), metric aggregation across corpora, per-rule/per-language
-  breakdowns. Deferred for analyzers: YAML rulepack engine (TASK-241). OWASP Benchmark, Juliet, and
-  the external fetcher remain **deferred to v2.0** (TASK-020a-F/J/C).
+- Deterministic analyzers: roadmap **#1 secrets + #2 code-execution complete**. **Next: #3 reverse
+  tabnabbing (CWE-1022)**, then #4 weak crypto, #5 insecure transport, #6 insecure deserialization —
+  each with its own curated corpus. Evaluation harness complete (TASK-020a/b/c + TASK-021). Deferred:
+  YAML rulepack engine (TASK-241); harness deltas (Phase 4b)/aggregation/grouping; CWE-79/89/78/22/918
+  to the Phase-2 taint engine. OWASP Benchmark, Juliet, and the external fetcher remain **v2.0**.
 - GitNexus `--pdg` spike (TASK-002 → TASK-003D)
 - Testing + Alembic migration conventions (TASK-023, TASK-024)
 - GitNexus integration (TASK-150/151)
@@ -345,19 +376,19 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (first deterministic analyzer; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (2nd deterministic analyzer: dynamic code execution; awaiting human review before merge)
 
 ## Last Completed Task
-First deterministic analyzer — hardcoded-secret scanner (CWE-798): reusable pattern-scanning
-foundation + secret rule pack + `SecretScanner` under `backend/app/services/deterministic/`, with
-backend tests (`test_deterministic_rules.py`, `test_secret_scanner.py`,
-`test_secret_scanner_harness.py`) and tooling extended to reach the `eval.harness` contract
-(2026-07-17); deterministic only (no taint/interproc/data-flow/AI); integrates via the harness
-`Detector` protocol and validates the full pipeline (`web_curated_ts` P=1.0/R=0.5; `project_curated`
-P=1.0/R=0.2). Backend gates green (ruff/mypy clean; pytest 27 passed; coverage 98.86%); eval harness
-gates still green (93 passed); awaiting human review before merge. Prior: **MVP evaluation harness
-complete end to end** — TASK-021 callable interface (`interface.py`); TASK-020c metrics
-(`metrics.py`); TASK-020b Slice 2 orchestration (`evaluation.py`); TASK-020b Slice 1 runner + matching
-(`runner.py`); TASK-020a corpora (`project_curated` + `web_curated_*`) + contract/validator/layout.
+Second deterministic analyzer — dynamic code execution (CWE-95/94) + reusable `PatternAnalyzer`:
+`analyzer.py` (PatternAnalyzer), `code_execution_rules.py`, `code_execution_scanner.py`, and
+`SecretScanner` refactored to subclass PatternAnalyzer, under `backend/app/services/deterministic/`;
+new curated corpus `code_exec_py` (2 vuln + 2 safe, CWE-95) + labels + registry entry + eval
+regression test; backend tests (`test_pattern_analyzer.py`, `test_code_execution_scanner.py`,
+`test_code_execution_harness.py`) (2026-07-17). Deterministic only (no taint/interproc/data-flow/AI);
+analyzers now differ only by their `PatternRule` list. Backend gates green (ruff/mypy clean; pytest 35
+passed; coverage 99.00%); eval harness gates green (ruff/mypy --strict clean; 94 passed); manual
+validation `code_exec_py` P=1.0/R=1.0, `web_curated_js` P=1.0/R=0.5; awaiting human review before merge.
+Prior: first analyzer — hardcoded-secret scanner (CWE-798); **MVP evaluation harness complete** —
+TASK-021 interface, TASK-020c metrics, TASK-020b orchestration+matching, TASK-020a corpora+validator.
 Prior: Engineering Foundation built and runtime-validated (2026-07-10) on
 `feature/engineering-foundation`. Earlier: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.

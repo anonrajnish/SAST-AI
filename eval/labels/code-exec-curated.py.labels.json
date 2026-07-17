@@ -1,0 +1,67 @@
+{
+  "corpus_id": "code_exec_py",
+  "language": "python",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "code_execution-vuln-1",
+      "corpus_id": "code_exec_py",
+      "language": "python",
+      "location": {
+        "file": "vulnerable_1.py",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-95",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Dynamic code execution via eval()"
+    },
+    {
+      "label_id": "code_execution-vuln-2",
+      "corpus_id": "code_exec_py",
+      "language": "python",
+      "location": {
+        "file": "vulnerable_2.py",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-95",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Dynamic code execution via exec()"
+    },
+    {
+      "label_id": "code_execution-safe-1",
+      "corpus_id": "code_exec_py",
+      "language": "python",
+      "location": {
+        "file": "secure_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-95",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: ast.literal_eval does not execute code"
+    },
+    {
+      "label_id": "code_execution-safe-2",
+      "corpus_id": "code_exec_py",
+      "language": "python",
+      "location": {
+        "file": "secure_2.py",
+        "start_line": 8,
+        "end_line": 8
+      },
+      "verdict": "safe",
+      "cwe": "CWE-95",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: fixed dispatch table, no dynamic evaluation"
+    }
+  ]
+}
