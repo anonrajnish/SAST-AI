@@ -76,6 +76,8 @@ def test_shipped_corpus_registry_is_valid() -> None:
         "weak_crypto_js",
         "unsafe_deserialization_py",
         "unsafe_deserialization_js",
+        "tls_verification_py",
+        "tls_verification_js",
     }
 
 

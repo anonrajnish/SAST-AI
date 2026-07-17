@@ -1,0 +1,67 @@
+{
+  "corpus_id": "tls_verification_py",
+  "language": "python",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "tls_verification-vuln-1",
+      "corpus_id": "tls_verification_py",
+      "language": "python",
+      "location": {
+        "file": "vulnerable_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-295",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "TLS verification disabled: requests verify=False"
+    },
+    {
+      "label_id": "tls_verification-vuln-2",
+      "corpus_id": "tls_verification_py",
+      "language": "python",
+      "location": {
+        "file": "vulnerable_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-295",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "TLS verification disabled: ssl._create_unverified_context"
+    },
+    {
+      "label_id": "tls_verification-safe-1",
+      "corpus_id": "tls_verification_py",
+      "language": "python",
+      "location": {
+        "file": "secure_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-295",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: requests verify=True"
+    },
+    {
+      "label_id": "tls_verification-safe-2",
+      "corpus_id": "tls_verification_py",
+      "language": "python",
+      "location": {
+        "file": "secure_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-295",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: ssl.create_default_context"
+    }
+  ]
+}

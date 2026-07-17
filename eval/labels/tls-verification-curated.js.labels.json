@@ -1,0 +1,67 @@
+{
+  "corpus_id": "tls_verification_js",
+  "language": "javascript",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "tls_verification-vuln-1",
+      "corpus_id": "tls_verification_js",
+      "language": "javascript",
+      "location": {
+        "file": "vulnerable_1.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-295",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "TLS verification disabled: rejectUnauthorized false (https.Agent)"
+    },
+    {
+      "label_id": "tls_verification-vuln-2",
+      "corpus_id": "tls_verification_js",
+      "language": "javascript",
+      "location": {
+        "file": "vulnerable_2.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-295",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "TLS verification disabled: rejectUnauthorized false (request options)"
+    },
+    {
+      "label_id": "tls_verification-safe-1",
+      "corpus_id": "tls_verification_js",
+      "language": "javascript",
+      "location": {
+        "file": "secure_1.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-295",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: rejectUnauthorized true"
+    },
+    {
+      "label_id": "tls_verification-safe-2",
+      "corpus_id": "tls_verification_js",
+      "language": "javascript",
+      "location": {
+        "file": "secure_2.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-295",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: default agent (verification enabled)"
+    }
+  ]
+}

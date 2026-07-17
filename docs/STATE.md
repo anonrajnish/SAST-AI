@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (4th deterministic analyzer: unsafe deserialization; prior: 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
+**Updated:** 2026-07-18 (5th deterministic analyzer: TLS verification disabled; prior: 4th unsafe deserialization; 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -317,9 +317,9 @@ data-flow / AI.** The eval harness (`eval/harness/*`) is unchanged.
 Pattern-based, high-confidence analyzers only (no taint/interprocedural/data-flow/AI), each paired
 with a small curated corpus (2 vulnerable + 2 safe). Order: **#1 Hardcoded secrets (CWE-798) ✅ →
 #2 Dynamic code execution (CWE-95) ✅ → #3 Weak cryptography (CWE-327/328) ✅ → #4 Unsafe
-deserialization (CWE-502) ✅ → TLS verification disabled (CWE-319/295) → Reverse tabnabbing
+deserialization (CWE-502) ✅ → #5 TLS verification disabled (CWE-295) ✅ → Reverse tabnabbing
 (CWE-1022)**. (Weak crypto was pulled ahead of tabnabbing, then — at the reviewer's direction —
-unsafe deserialization was prioritized next, ahead of TLS-verify-off and tabnabbing.) The **partial
+unsafe deserialization and then TLS-verify-off were prioritized ahead of tabnabbing.) The **partial
 DOM-XSS detector was deliberately dropped** — CWE-79 (and SQLi/CWE-89,
 command injection/CWE-78, path traversal/CWE-22, SSRF/CWE-918) are owned by the future taint engine
 (Phase 2: TASK-210/240/250/260), not by lower-precision pattern rules.
@@ -400,6 +400,37 @@ the loader id-set test touched).
   both → TP=2/FP=0/FN=0, **P=1.0, R=1.0**; safe `yaml.safe_load`/`json.loads`/`JSON.parse` confirmed
   **not** flagged.
 
+## Completed — Fifth deterministic analyzer: TLS verification disabled (2026-07-18)
+Disabled-TLS-certificate-verification analyzer (CWE-295 improper certificate validation), under
+`backend/app/services/deterministic/`. Reuses `PatternAnalyzer` **unchanged** and the scanning engine
+**unmodified** — a new rulepack + thin `TlsVerificationScanner` wrapper only. **Deterministic;
+no taint/interprocedural/data-flow/AI/YAML rulepacks.** Harness logic unchanged (only corpus data +
+the loader id-set test touched).
+
+- **Rulepack** (`.../deterministic/tls_verification_rules.py`): 2 `PatternRule`s covering
+  explicit verification-disabling flags whose safe counterpart is a distinct token — Python
+  `verify=False` (requests/httpx kwarg **and** the `session.verify = False` attribute form) and
+  `ssl._create_unverified_context(`; JS/TS `rejectUnauthorized: false`. The `verify` pattern matches
+  **assignment forms only** and never the comparison `verify == False`; safe forms (`verify=True`,
+  `ssl.create_default_context`, `rejectUnauthorized: true`, omitted) are structurally excluded.
+  **Deliberately excluded** (need contextual/data-flow analysis or belong elsewhere):
+  `urllib3.disable_warnings()`, `http://` vs `https://` (CWE-319), self-signed/custom-store handling,
+  and `NODE_TLS_REJECT_UNAUTHORIZED=0` (environment config → future enhancement).
+- **`TlsVerificationScanner`** (`.../deterministic/tls_verification_scanner.py`): a `PatternAnalyzer`
+  subclass (detector name `tls-verification-scanner`).
+- **Two curated corpora** (both 2 vuln + 2 safe, CWE-295) so Python **and** Web rules are measurable:
+  `tls_verification_py` (`tls-verification-curated/python/`) and `tls_verification_js`
+  (`tls-verification-curated/javascript/`) + labels + registry descriptors + eval regression test
+  (`test_tls_verification_corpus.py`); `test_loader.py` id-set updated. Corpus files are inert (never
+  imported/executed) — no real network or TLS calls.
+- **No sensitive-data leakage**: findings carry only file/location/rule_id/CWE — never surrounding
+  configuration or matched text.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (27 files), `pytest` = **56 passed**, coverage
+  **99.21%** (gate 80%); eval harness `ruff`/`mypy --strict` clean (25 files), `pytest` = **100 passed**.
+  Manual validation via `evaluate_corpus`: `tls_verification_py` and `tls_verification_js` both →
+  TP=2/FP=0/FN=0, **P=1.0, R=1.0**; safe `verify=True`/`ssl.create_default_context`/
+  `rejectUnauthorized: true` confirmed **not** flagged.
+
 ## Deferred (was In Progress)
 - ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
   (see TASK_BACKLOG Phase 1); resumes when Phase 1 is scheduled. Current active work stream is the
@@ -407,8 +438,8 @@ the loader id-set test touched).
 
 ## Pending (next up — MVP critical path)
 - Deterministic analyzers: **secrets (CWE-798) + code-execution (CWE-95) + weak crypto (CWE-327/328)
-  + unsafe deserialization (CWE-502) complete**. **Next: TLS verification disabled (CWE-319/295)**,
-  then reverse tabnabbing (CWE-1022) — each with its own curated corpus.
+  + unsafe deserialization (CWE-502) + TLS verification disabled (CWE-295) complete**. **Next:
+  reverse tabnabbing (CWE-1022)** — with its own curated corpus.
   Evaluation harness complete (TASK-020a/b/c + TASK-021). Deferred: YAML rulepack engine (TASK-241);
   harness deltas (Phase 4b)/aggregation/grouping; CWE-79/89/78/22/918 to the Phase-2 taint engine;
   Blowfish to a future Security Best-Practices category. OWASP Benchmark, Juliet, and the external
@@ -436,10 +467,21 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (4th deterministic analyzer: unsafe deserialization; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (5th deterministic analyzer: TLS verification disabled; awaiting human review before merge)
 
 ## Last Completed Task
-Fourth deterministic analyzer — unsafe deserialization (CWE-502): rulepack
+Fifth deterministic analyzer — TLS certificate verification disabled (CWE-295): rulepack
+`tls_verification_rules.py` (Python `verify=False` incl. `session.verify = False`, assignment-only
+not the `==` comparison, + `ssl._create_unverified_context()`; JS/TS `rejectUnauthorized: false`;
+`urllib3.disable_warnings`/`NODE_TLS_REJECT_UNAUTHORIZED` excluded) + thin `TlsVerificationScanner`
+(a `PatternAnalyzer` subclass), under `backend/app/services/deterministic/`; two new curated corpora
+`tls_verification_py` + `tls_verification_js` (each 2 vuln + 2 safe) + labels + registry entries + eval
+regression test; backend tests (`test_tls_verification_scanner.py`, `test_tls_verification_harness.py`)
+(2026-07-18). `PatternAnalyzer` and the scanning engine reused unchanged; deterministic only (no
+taint/interproc/data-flow/AI/YAML). Backend gates green (ruff/mypy clean; pytest 56 passed; coverage
+99.21%); eval harness gates green (ruff/mypy --strict clean; 100 passed); manual validation
+`tls_verification_py` and `tls_verification_js` both P=1.0/R=1.0, safe forms not flagged; awaiting
+human review before merge. Prior: 4th analyzer — unsafe deserialization (CWE-502): rulepack
 `unsafe_deserialization_rules.py` (Python `pickle.load`/`pickle.loads` + `yaml.load`/`yaml.load_all`;
 JS/TS node-serialize `unserialize`/`serialize.unserialize`; safe `yaml.safe_load`/`json.loads`/
 `JSON.parse` excluded; `dill`/`marshal`/`jsonpickle` deferred) + thin `UnsafeDeserializationScanner`

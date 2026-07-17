@@ -133,6 +133,30 @@
       "labels_path": "unsafe-deserialization-curated.js.labels.json",
       "license": "MIT",
       "notes": "Small in-repo curated unsafe-deserialization cases (CWE-502) for the MVP deterministic analyzer suite."
+    },
+    {
+      "id": "tls_verification_py",
+      "name": "TLS Verification Curated (Python)",
+      "kind": "project_curated",
+      "language": "python",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "tls-verification-curated/python",
+      "labels_path": "tls-verification-curated.py.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated disabled-TLS-verification cases (CWE-295) for the MVP deterministic analyzer suite."
+    },
+    {
+      "id": "tls_verification_js",
+      "name": "TLS Verification Curated (JavaScript)",
+      "kind": "project_curated",
+      "language": "javascript",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "tls-verification-curated/javascript",
+      "labels_path": "tls-verification-curated.js.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated disabled-TLS-verification cases (CWE-295) for the MVP deterministic analyzer suite."
     }
   ]
 }
