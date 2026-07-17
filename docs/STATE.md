@@ -284,15 +284,44 @@ analyzer, no orchestration duplicated**. Purely additive — no edits to any exi
   JSON-serialized (6 keys), and an integrity-failure corpus returned `status=integrity_failed`,
   `metrics=None` with no exception.
 
+## Completed — First deterministic analyzer: hardcoded-secret scanner (2026-07-17)
+The first analyzer in the deterministic detection layer, placed under the backend application
+(`backend/app/services/deterministic/`) so future scan pipelines can reuse it. Detects **hardcoded
+secrets (CWE-798)** — a simple, high-confidence, single-line class — and validates the complete
+pipeline through the harness `Detector` seam. **Deterministic only; no taint / interprocedural /
+data-flow / AI.** The eval harness (`eval/harness/*`) is unchanged.
+
+- **Reusable scanning foundation** (`.../deterministic/rules.py`): `PatternRule` (frozen: id, name,
+  cwe, `frozenset[Language]`, regex) + a rule-agnostic engine `scan_tree(root, rules, *,
+  detector_name)` that walks a tree, selects files by extension→`Language`, applies rules per line,
+  and emits `eval.harness.runner.Finding`s. Future pattern analyzers reuse this by supplying rules;
+  the full YAML rule engine remains deferred (TASK-241).
+- **Secret rule pack** (`.../deterministic/secret_rules.py`): one high-confidence rule — a
+  secret-suggestive identifier (`password|secret|token|api_key|…`) assigned directly to a string
+  literal — which flags the literal case and excludes environment reads. Applies to Python + Web.
+- **Analyzer** (`.../deterministic/secret_scanner.py`): `SecretScanner.scan(corpus_root) ->
+  list[Finding]` satisfies the harness `Detector` protocol; plugs straight into `evaluate_corpus`.
+- **No secret leakage**: findings carry only file, location, `rule_id`, and CWE — never the matched
+  value (test asserts the secret string is absent from the serialized finding).
+- **Tooling extended**: backend `pytest.ini` (`pythonpath = . ..`) and `pyproject.toml`
+  (`mypy_path = ".."`) so backend resolves the `eval.harness` contract. *(Coupling note: product
+  code imports `eval.harness` for the `Finding`/`Detector` contract; a shared-contract relocation can
+  be revisited when the backend scan pipeline lands.)*
+- **DoD gates green**: backend `ruff check .` clean, `mypy app` clean (18 files), `pytest` = 27
+  passed, coverage **98.86%** (gate 80%); eval harness gates still green (ruff/mypy clean; 93 passed).
+  Manual validation via `evaluate_corpus`: `web_curated_ts` → TP=1/FP=0/FN=1, **P=1.0, R=0.5**;
+  `project_curated` → TP=2/FP=0/FN=8, **P=1.0, R=0.2** (misses other CWE classes by design; env-read
+  safe examples correctly not flagged). Corresponds to backlog TASK-270 (secret/pattern scanner).
+
 ## In Progress
 - ZIP upload module (TASK-130)
 
 ## Pending (next up — MVP critical path)
-- Evaluation harness: **TASK-020a/b/c + TASK-021 complete** — corpora + runner/orchestration + metrics
-  + callable interface (`evaluate_corpus`). Deferred within the harness: candidate-vs-baseline deltas
-  (Phase 4b), metric aggregation across corpora (micro/macro/weighted), and per-rule/per-language
-  breakdowns. OWASP Benchmark, Juliet, and the external fetcher remain **deferred to v2.0**
-  (TASK-020a-F/J/C).
+- Evaluation harness: **TASK-020a/b/c + TASK-021 complete**; **first deterministic analyzer
+  (hardcoded-secret scanner, CWE-798) complete** and pipeline-validated. Deferred within the harness:
+  candidate-vs-baseline deltas (Phase 4b), metric aggregation across corpora, per-rule/per-language
+  breakdowns. Deferred for analyzers: YAML rulepack engine (TASK-241). OWASP Benchmark, Juliet, and
+  the external fetcher remain **deferred to v2.0** (TASK-020a-F/J/C).
 - GitNexus `--pdg` spike (TASK-002 → TASK-003D)
 - Testing + Alembic migration conventions (TASK-023, TASK-024)
 - GitNexus integration (TASK-150/151)
@@ -316,18 +345,19 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (TASK-021 callable interface; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (first deterministic analyzer; awaiting human review before merge)
 
 ## Last Completed Task
-TASK-021 — callable evaluation interface: `eval/harness/interface.py` (`EvaluationStatus`,
-`EvaluationResult`, `evaluate_corpus`) + `eval/harness/tests/test_interface.py` (7 tests), on
-`feature/task-020a-evaluation-foundation` (2026-07-17); fully DI, reuses the orchestrator + metrics
-unchanged; no CLI/REST/AI/analyzer; deltas deferred to Phase 4b. DoD gates green (ruff/mypy clean;
-pytest 93 passed); awaiting human review before merge. **This completes the MVP evaluation harness
-end to end (TASK-020a/b/c + TASK-021):** corpora → runner/orchestration → metrics → callable entry
-point. Prior: TASK-020c metrics (`metrics.py`); TASK-020b Slice 2 — single-corpus orchestration
-(`evaluation.py`); TASK-020b Slice 1 — runner result contract + matching (`runner.py`); TASK-020a
-complete for MVP — Web corpus slice (`web_curated_*`); language-agnostic reconciliation; Slice 4
-`project_curated` (Python) corpus; Slice 3 layout; Slice 2 validator; Slice 1 ground-truth contract.
+First deterministic analyzer — hardcoded-secret scanner (CWE-798): reusable pattern-scanning
+foundation + secret rule pack + `SecretScanner` under `backend/app/services/deterministic/`, with
+backend tests (`test_deterministic_rules.py`, `test_secret_scanner.py`,
+`test_secret_scanner_harness.py`) and tooling extended to reach the `eval.harness` contract
+(2026-07-17); deterministic only (no taint/interproc/data-flow/AI); integrates via the harness
+`Detector` protocol and validates the full pipeline (`web_curated_ts` P=1.0/R=0.5; `project_curated`
+P=1.0/R=0.2). Backend gates green (ruff/mypy clean; pytest 27 passed; coverage 98.86%); eval harness
+gates still green (93 passed); awaiting human review before merge. Prior: **MVP evaluation harness
+complete end to end** — TASK-021 callable interface (`interface.py`); TASK-020c metrics
+(`metrics.py`); TASK-020b Slice 2 orchestration (`evaluation.py`); TASK-020b Slice 1 runner + matching
+(`runner.py`); TASK-020a corpora (`project_curated` + `web_curated_*`) + contract/validator/layout.
 Prior: Engineering Foundation built and runtime-validated (2026-07-10) on
 `feature/engineering-foundation`. Earlier: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.

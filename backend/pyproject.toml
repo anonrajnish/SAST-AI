@@ -14,6 +14,9 @@ select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF"]
 
 [tool.mypy]
 python_version = "3.12"
+# Repo root so backend can resolve the eval harness contract (eval.harness.*),
+# which the deterministic analyzers produce Findings for.
+mypy_path = ".."
 strict = true
 warn_unused_configs = true
 warn_redundant_casts = true
