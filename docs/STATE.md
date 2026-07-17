@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-15 (multi-language MVP scope reconciliation; prior: 2026-07-10 ARCHITECTURE_v2.3 + approved review)
+**Updated:** 2026-07-18 (4th deterministic analyzer: unsafe deserialization; prior: 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -316,9 +316,10 @@ data-flow / AI.** The eval harness (`eval/harness/*`) is unchanged.
 ## MVP deterministic analyzer roadmap (approved 2026-07-17)
 Pattern-based, high-confidence analyzers only (no taint/interprocedural/data-flow/AI), each paired
 with a small curated corpus (2 vulnerable + 2 safe). Order: **#1 Hardcoded secrets (CWE-798) ✅ →
-#2 Dynamic code execution (CWE-95) ✅ → Weak cryptography (CWE-327/328) ✅ → Reverse tabnabbing
-(CWE-1022) → Insecure transport / TLS-verify-off (CWE-319/295) → Insecure deserialization
-(CWE-502)**. (Weak crypto was pulled ahead of tabnabbing at the reviewer's direction.) The **partial
+#2 Dynamic code execution (CWE-95) ✅ → #3 Weak cryptography (CWE-327/328) ✅ → #4 Unsafe
+deserialization (CWE-502) ✅ → TLS verification disabled (CWE-319/295) → Reverse tabnabbing
+(CWE-1022)**. (Weak crypto was pulled ahead of tabnabbing, then — at the reviewer's direction —
+unsafe deserialization was prioritized next, ahead of TLS-verify-off and tabnabbing.) The **partial
 DOM-XSS detector was deliberately dropped** — CWE-79 (and SQLi/CWE-89,
 command injection/CWE-78, path traversal/CWE-22, SSRF/CWE-918) are owned by the future taint engine
 (Phase 2: TASK-210/240/250/260), not by lower-precision pattern rules.
@@ -371,13 +372,43 @@ loader id-set test touched).
   Manual validation via `evaluate_corpus`: `weak_crypto_py` and `weak_crypto_js` both →
   TP=2/FP=0/FN=0, **P=1.0, R=1.0**; Blowfish confirmed **not** flagged.
 
-## In Progress
-- ZIP upload module (TASK-130)
+## Completed — Fourth deterministic analyzer: unsafe deserialization (2026-07-18)
+Unsafe-deserialization analyzer (CWE-502 deserialization of untrusted data), under
+`backend/app/services/deterministic/`. Reuses `PatternAnalyzer` **unchanged** and the scanning engine
+**unmodified** — a new rulepack + thin `UnsafeDeserializationScanner` wrapper only. **Deterministic;
+no taint/interprocedural/data-flow/AI/YAML rulepacks.** Harness logic unchanged (only corpus data +
+the loader id-set test touched).
+
+- **Rulepack** (`.../deterministic/unsafe_deserialization_rules.py`): 2 `PatternRule`s covering the
+  highest-confidence sinks whose safe counterpart is a syntactically distinct API — Python
+  `pickle.load`/`pickle.loads` and `yaml.load`/`yaml.load_all`; JS/TS `unserialize` /
+  `serialize.unserialize` (node-serialize). The safe forms `yaml.safe_load`, `json.loads`, and
+  `JSON.parse` are **structurally excluded** (not matched). Extended sinks (`dill`, `marshal`,
+  `jsonpickle`, `js-yaml`) are **deferred to a future enhancement** to keep the pack focused.
+- **`UnsafeDeserializationScanner`** (`.../deterministic/unsafe_deserialization_scanner.py`): a
+  `PatternAnalyzer` subclass (detector name `unsafe-deserialization-scanner`).
+- **Two curated corpora** (both 2 vuln + 2 safe, CWE-502) so Python **and** Web rules are measurable:
+  `unsafe_deserialization_py` (`unsafe-deserialization-curated/python/`) and
+  `unsafe_deserialization_js` (`unsafe-deserialization-curated/javascript/`) + labels + registry
+  descriptors + eval regression test (`test_unsafe_deserialization_corpus.py`); `test_loader.py`
+  id-set updated. Corpus files are inert (never imported/executed) — no runtime deserialization.
+- **No sensitive-data leakage**: findings carry only file/location/rule_id/CWE — never payloads or
+  matched text.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (25 files), `pytest` = **49 passed**, coverage
+  **99.16%** (gate 80%); eval harness `ruff`/`mypy --strict` clean (24 files), `pytest` = **98 passed**.
+  Manual validation via `evaluate_corpus`: `unsafe_deserialization_py` and `unsafe_deserialization_js`
+  both → TP=2/FP=0/FN=0, **P=1.0, R=1.0**; safe `yaml.safe_load`/`json.loads`/`JSON.parse` confirmed
+  **not** flagged.
+
+## Deferred (was In Progress)
+- ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
+  (see TASK_BACKLOG Phase 1); resumes when Phase 1 is scheduled. Current active work stream is the
+  deterministic analyzer suite on `feature/task-020a-evaluation-foundation`.
 
 ## Pending (next up — MVP critical path)
 - Deterministic analyzers: **secrets (CWE-798) + code-execution (CWE-95) + weak crypto (CWE-327/328)
-  complete**. **Next: reverse tabnabbing (CWE-1022)**, then insecure transport / TLS-verify-off
-  (CWE-319/295), then insecure deserialization (CWE-502) — each with its own curated corpus.
+  + unsafe deserialization (CWE-502) complete**. **Next: TLS verification disabled (CWE-319/295)**,
+  then reverse tabnabbing (CWE-1022) — each with its own curated corpus.
   Evaluation harness complete (TASK-020a/b/c + TASK-021). Deferred: YAML rulepack engine (TASK-241);
   harness deltas (Phase 4b)/aggregation/grouping; CWE-79/89/78/22/918 to the Phase-2 taint engine;
   Blowfish to a future Security Best-Practices category. OWASP Benchmark, Juliet, and the external
@@ -405,21 +436,24 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (3rd deterministic analyzer: weak cryptography; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (4th deterministic analyzer: unsafe deserialization; awaiting human review before merge)
 
 ## Last Completed Task
-Third deterministic analyzer — weak cryptography (CWE-327/328): rulepack `weak_crypto_rules.py`
-(MD5/SHA-1 hashes + DES/3DES/RC4 ciphers; Blowfish excluded → future Best-Practices) + thin
-`WeakCryptoScanner` (a `PatternAnalyzer` subclass), under `backend/app/services/deterministic/`; two
-new curated corpora `weak_crypto_py` + `weak_crypto_js` (each 2 vuln + 2 safe) + labels + registry
-entries + eval regression test; backend tests (`test_weak_crypto_scanner.py`,
-`test_weak_crypto_harness.py`) (2026-07-18). `PatternAnalyzer` and the scanning engine reused
-unchanged; deterministic only (no taint/interproc/data-flow/AI/YAML). Backend gates green (ruff/mypy
-clean; pytest 42 passed; coverage 99.10%); eval harness gates green (ruff/mypy --strict clean; 96
-passed); manual validation `weak_crypto_py` and `weak_crypto_js` both P=1.0/R=1.0, Blowfish not
-flagged; awaiting human review before merge. Prior: 2nd analyzer — dynamic code execution (CWE-95) +
-reusable `PatternAnalyzer`; 1st analyzer — hardcoded-secret scanner (CWE-798); **MVP evaluation
-harness complete** — TASK-021 interface, TASK-020c metrics, TASK-020b orchestration+matching,
-TASK-020a corpora+validator.
+Fourth deterministic analyzer — unsafe deserialization (CWE-502): rulepack
+`unsafe_deserialization_rules.py` (Python `pickle.load`/`pickle.loads` + `yaml.load`/`yaml.load_all`;
+JS/TS node-serialize `unserialize`/`serialize.unserialize`; safe `yaml.safe_load`/`json.loads`/
+`JSON.parse` excluded; `dill`/`marshal`/`jsonpickle` deferred) + thin `UnsafeDeserializationScanner`
+(a `PatternAnalyzer` subclass), under `backend/app/services/deterministic/`; two new curated corpora
+`unsafe_deserialization_py` + `unsafe_deserialization_js` (each 2 vuln + 2 safe) + labels + registry
+entries + eval regression test; backend tests (`test_unsafe_deserialization_scanner.py`,
+`test_unsafe_deserialization_harness.py`) (2026-07-18). `PatternAnalyzer` and the scanning engine
+reused unchanged; deterministic only (no taint/interproc/data-flow/AI/YAML). Also marked TASK-130
+(ZIP upload) as deferred rather than in progress. Backend gates green (ruff/mypy clean; pytest 49
+passed; coverage 99.16%); eval harness gates green (ruff/mypy --strict clean; 98 passed); manual
+validation `unsafe_deserialization_py` and `unsafe_deserialization_js` both P=1.0/R=1.0, safe forms
+not flagged; awaiting human review before merge. Prior: 3rd analyzer — weak cryptography
+(CWE-327/328); 2nd analyzer — dynamic code execution (CWE-95) + reusable `PatternAnalyzer`; 1st
+analyzer — hardcoded-secret scanner (CWE-798); **MVP evaluation harness complete** — TASK-021
+interface, TASK-020c metrics, TASK-020b orchestration+matching, TASK-020a corpora+validator.
 Prior: Engineering Foundation built and runtime-validated (2026-07-10) on
 `feature/engineering-foundation`. Earlier: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.

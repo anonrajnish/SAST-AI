@@ -1,0 +1,67 @@
+{
+  "corpus_id": "unsafe_deserialization_js",
+  "language": "javascript",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "unsafe_deserialization-vuln-1",
+      "corpus_id": "unsafe_deserialization_js",
+      "language": "javascript",
+      "location": {
+        "file": "vulnerable_1.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-502",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Unsafe deserialization: serialize.unserialize"
+    },
+    {
+      "label_id": "unsafe_deserialization-vuln-2",
+      "corpus_id": "unsafe_deserialization_js",
+      "language": "javascript",
+      "location": {
+        "file": "vulnerable_2.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-502",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Unsafe deserialization: unserialize"
+    },
+    {
+      "label_id": "unsafe_deserialization-safe-1",
+      "corpus_id": "unsafe_deserialization_js",
+      "language": "javascript",
+      "location": {
+        "file": "secure_1.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-502",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: JSON.parse"
+    },
+    {
+      "label_id": "unsafe_deserialization-safe-2",
+      "corpus_id": "unsafe_deserialization_js",
+      "language": "javascript",
+      "location": {
+        "file": "secure_2.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-502",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: JSON.parse"
+    }
+  ]
+}

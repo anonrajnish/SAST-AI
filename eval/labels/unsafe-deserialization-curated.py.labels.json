@@ -1,0 +1,67 @@
+{
+  "corpus_id": "unsafe_deserialization_py",
+  "language": "python",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "unsafe_deserialization-vuln-1",
+      "corpus_id": "unsafe_deserialization_py",
+      "language": "python",
+      "location": {
+        "file": "vulnerable_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-502",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Unsafe deserialization: pickle.loads"
+    },
+    {
+      "label_id": "unsafe_deserialization-vuln-2",
+      "corpus_id": "unsafe_deserialization_py",
+      "language": "python",
+      "location": {
+        "file": "vulnerable_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-502",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Unsafe deserialization: yaml.load without SafeLoader"
+    },
+    {
+      "label_id": "unsafe_deserialization-safe-1",
+      "corpus_id": "unsafe_deserialization_py",
+      "language": "python",
+      "location": {
+        "file": "secure_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-502",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: json.loads"
+    },
+    {
+      "label_id": "unsafe_deserialization-safe-2",
+      "corpus_id": "unsafe_deserialization_py",
+      "language": "python",
+      "location": {
+        "file": "secure_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-502",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: yaml.safe_load"
+    }
+  ]
+}

@@ -109,6 +109,30 @@
       "labels_path": "weak-crypto-curated.js.labels.json",
       "license": "MIT",
       "notes": "Small in-repo curated weak-cryptography cases (CWE-327/328) for the MVP deterministic analyzer suite."
+    },
+    {
+      "id": "unsafe_deserialization_py",
+      "name": "Unsafe Deserialization Curated (Python)",
+      "kind": "project_curated",
+      "language": "python",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "unsafe-deserialization-curated/python",
+      "labels_path": "unsafe-deserialization-curated.py.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated unsafe-deserialization cases (CWE-502) for the MVP deterministic analyzer suite."
+    },
+    {
+      "id": "unsafe_deserialization_js",
+      "name": "Unsafe Deserialization Curated (JavaScript)",
+      "kind": "project_curated",
+      "language": "javascript",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "unsafe-deserialization-curated/javascript",
+      "labels_path": "unsafe-deserialization-curated.js.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated unsafe-deserialization cases (CWE-502) for the MVP deterministic analyzer suite."
     }
   ]
 }
