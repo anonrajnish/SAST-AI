@@ -85,6 +85,30 @@
       "labels_path": "code-exec-curated.py.labels.json",
       "license": "MIT",
       "notes": "Small in-repo curated dynamic-code-execution cases (CWE-95) for the MVP deterministic analyzer suite."
+    },
+    {
+      "id": "weak_crypto_py",
+      "name": "Weak Cryptography Curated (Python)",
+      "kind": "project_curated",
+      "language": "python",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "weak-crypto-curated/python",
+      "labels_path": "weak-crypto-curated.py.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated weak-cryptography cases (CWE-327/328) for the MVP deterministic analyzer suite."
+    },
+    {
+      "id": "weak_crypto_js",
+      "name": "Weak Cryptography Curated (JavaScript)",
+      "kind": "project_curated",
+      "language": "javascript",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "weak-crypto-curated/javascript",
+      "labels_path": "weak-crypto-curated.js.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated weak-cryptography cases (CWE-327/328) for the MVP deterministic analyzer suite."
     }
   ]
 }

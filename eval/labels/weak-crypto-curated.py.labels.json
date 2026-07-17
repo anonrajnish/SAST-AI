@@ -1,0 +1,67 @@
+{
+  "corpus_id": "weak_crypto_py",
+  "language": "python",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "weak_hash-vuln-1",
+      "corpus_id": "weak_crypto_py",
+      "language": "python",
+      "location": {
+        "file": "vulnerable_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-328",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Weak hash: MD5"
+    },
+    {
+      "label_id": "weak_cipher-vuln-1",
+      "corpus_id": "weak_crypto_py",
+      "language": "python",
+      "location": {
+        "file": "vulnerable_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-327",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Weak cipher: DES"
+    },
+    {
+      "label_id": "weak_hash-safe-1",
+      "corpus_id": "weak_crypto_py",
+      "language": "python",
+      "location": {
+        "file": "secure_1.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-328",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: SHA-256"
+    },
+    {
+      "label_id": "weak_cipher-safe-1",
+      "corpus_id": "weak_crypto_py",
+      "language": "python",
+      "location": {
+        "file": "secure_2.py",
+        "start_line": 7,
+        "end_line": 7
+      },
+      "verdict": "safe",
+      "cwe": "CWE-327",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: AES-GCM"
+    }
+  ]
+}

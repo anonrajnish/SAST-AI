@@ -316,9 +316,10 @@ data-flow / AI.** The eval harness (`eval/harness/*`) is unchanged.
 ## MVP deterministic analyzer roadmap (approved 2026-07-17)
 Pattern-based, high-confidence analyzers only (no taint/interprocedural/data-flow/AI), each paired
 with a small curated corpus (2 vulnerable + 2 safe). Order: **#1 Hardcoded secrets (CWE-798) ✅ →
-#2 Dynamic code execution (CWE-95) ✅ → #3 Reverse tabnabbing (CWE-1022) → #4 Weak cryptography
-(CWE-327/328) → #5 Insecure transport / TLS-verify-off (CWE-319/295) → #6 Insecure deserialization
-(CWE-502)**. The **partial DOM-XSS detector was deliberately dropped** — CWE-79 (and SQLi/CWE-89,
+#2 Dynamic code execution (CWE-95) ✅ → Weak cryptography (CWE-327/328) ✅ → Reverse tabnabbing
+(CWE-1022) → Insecure transport / TLS-verify-off (CWE-319/295) → Insecure deserialization
+(CWE-502)**. (Weak crypto was pulled ahead of tabnabbing at the reviewer's direction.) The **partial
+DOM-XSS detector was deliberately dropped** — CWE-79 (and SQLi/CWE-89,
 command injection/CWE-78, path traversal/CWE-22, SSRF/CWE-918) are owned by the future taint engine
 (Phase 2: TASK-210/240/250/260), not by lower-precision pattern rules.
 
@@ -344,15 +345,43 @@ were touched.
   `web_curated_js` → TP=1/FP=0/FN=1, **P=1.0, R=0.5**; refactored `SecretScanner` behaviour unchanged
   (`project_curated` P=1.0, R=0.2).
 
+## Completed — Third deterministic analyzer: weak cryptography (2026-07-18)
+Weak-cryptography analyzer (CWE-327 broken cipher / CWE-328 weak hash), under
+`backend/app/services/deterministic/`. Reuses `PatternAnalyzer` **unchanged** and the scanning engine
+**unmodified** — a new rulepack + thin `WeakCryptoScanner` wrapper only. **Deterministic; no
+taint/interprocedural/data-flow/AI/YAML rulepacks.** Harness logic unchanged (only corpus data + the
+loader id-set test touched).
+
+- **Rulepack** (`.../deterministic/weak_crypto_rules.py`): 4 `PatternRule`s covering **MD5, SHA-1**
+  (weak hash → CWE-328) and **DES, 3DES, RC4** (weak cipher → CWE-327) across Python and JS/TS.
+  Algorithm tokens are anchored to real crypto calls (`hashlib.md5(`, `createHash("md5")`, `DES.new(`,
+  `createCipheriv("des…")`, `CryptoJS.*`, …) so names/comments are not flagged; SHA-256/512 and AES
+  are structurally excluded. **Blowfish is deliberately excluded** — it is reserved for a future
+  Security Best-Practices category (migrate-to-AES recommendation), not a CWE-327/328 vulnerability.
+- **`WeakCryptoScanner`** (`.../deterministic/weak_crypto_scanner.py`): a `PatternAnalyzer` subclass.
+- **Two curated corpora** (both 2 vuln + 2 safe, CWE-327/328) so Python **and** Web rules are
+  measurable: `weak_crypto_py` (`weak-crypto-curated/python/`) and `weak_crypto_js`
+  (`weak-crypto-curated/javascript/`) + labels + registry descriptors + eval regression test
+  (`test_weak_crypto_corpus.py`); `test_loader.py` id-set updated. Corpus files are inert (never
+  imported/executed) — no runtime crypto dependency.
+- **No sensitive-data leakage**: findings carry only file/location/rule_id/CWE — never key material,
+  hashed data, or matched text.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (23 files), `pytest` = **42 passed**, coverage
+  **99.10%** (gate 80%); eval harness `ruff`/`mypy --strict` clean (23 files), `pytest` = **96 passed**.
+  Manual validation via `evaluate_corpus`: `weak_crypto_py` and `weak_crypto_js` both →
+  TP=2/FP=0/FN=0, **P=1.0, R=1.0**; Blowfish confirmed **not** flagged.
+
 ## In Progress
 - ZIP upload module (TASK-130)
 
 ## Pending (next up — MVP critical path)
-- Deterministic analyzers: roadmap **#1 secrets + #2 code-execution complete**. **Next: #3 reverse
-  tabnabbing (CWE-1022)**, then #4 weak crypto, #5 insecure transport, #6 insecure deserialization —
-  each with its own curated corpus. Evaluation harness complete (TASK-020a/b/c + TASK-021). Deferred:
-  YAML rulepack engine (TASK-241); harness deltas (Phase 4b)/aggregation/grouping; CWE-79/89/78/22/918
-  to the Phase-2 taint engine. OWASP Benchmark, Juliet, and the external fetcher remain **v2.0**.
+- Deterministic analyzers: **secrets (CWE-798) + code-execution (CWE-95) + weak crypto (CWE-327/328)
+  complete**. **Next: reverse tabnabbing (CWE-1022)**, then insecure transport / TLS-verify-off
+  (CWE-319/295), then insecure deserialization (CWE-502) — each with its own curated corpus.
+  Evaluation harness complete (TASK-020a/b/c + TASK-021). Deferred: YAML rulepack engine (TASK-241);
+  harness deltas (Phase 4b)/aggregation/grouping; CWE-79/89/78/22/918 to the Phase-2 taint engine;
+  Blowfish to a future Security Best-Practices category. OWASP Benchmark, Juliet, and the external
+  fetcher remain **v2.0**.
 - GitNexus `--pdg` spike (TASK-002 → TASK-003D)
 - Testing + Alembic migration conventions (TASK-023, TASK-024)
 - GitNexus integration (TASK-150/151)
@@ -376,19 +405,21 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (2nd deterministic analyzer: dynamic code execution; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (3rd deterministic analyzer: weak cryptography; awaiting human review before merge)
 
 ## Last Completed Task
-Second deterministic analyzer — dynamic code execution (CWE-95/94) + reusable `PatternAnalyzer`:
-`analyzer.py` (PatternAnalyzer), `code_execution_rules.py`, `code_execution_scanner.py`, and
-`SecretScanner` refactored to subclass PatternAnalyzer, under `backend/app/services/deterministic/`;
-new curated corpus `code_exec_py` (2 vuln + 2 safe, CWE-95) + labels + registry entry + eval
-regression test; backend tests (`test_pattern_analyzer.py`, `test_code_execution_scanner.py`,
-`test_code_execution_harness.py`) (2026-07-17). Deterministic only (no taint/interproc/data-flow/AI);
-analyzers now differ only by their `PatternRule` list. Backend gates green (ruff/mypy clean; pytest 35
-passed; coverage 99.00%); eval harness gates green (ruff/mypy --strict clean; 94 passed); manual
-validation `code_exec_py` P=1.0/R=1.0, `web_curated_js` P=1.0/R=0.5; awaiting human review before merge.
-Prior: first analyzer — hardcoded-secret scanner (CWE-798); **MVP evaluation harness complete** —
-TASK-021 interface, TASK-020c metrics, TASK-020b orchestration+matching, TASK-020a corpora+validator.
+Third deterministic analyzer — weak cryptography (CWE-327/328): rulepack `weak_crypto_rules.py`
+(MD5/SHA-1 hashes + DES/3DES/RC4 ciphers; Blowfish excluded → future Best-Practices) + thin
+`WeakCryptoScanner` (a `PatternAnalyzer` subclass), under `backend/app/services/deterministic/`; two
+new curated corpora `weak_crypto_py` + `weak_crypto_js` (each 2 vuln + 2 safe) + labels + registry
+entries + eval regression test; backend tests (`test_weak_crypto_scanner.py`,
+`test_weak_crypto_harness.py`) (2026-07-18). `PatternAnalyzer` and the scanning engine reused
+unchanged; deterministic only (no taint/interproc/data-flow/AI/YAML). Backend gates green (ruff/mypy
+clean; pytest 42 passed; coverage 99.10%); eval harness gates green (ruff/mypy --strict clean; 96
+passed); manual validation `weak_crypto_py` and `weak_crypto_js` both P=1.0/R=1.0, Blowfish not
+flagged; awaiting human review before merge. Prior: 2nd analyzer — dynamic code execution (CWE-95) +
+reusable `PatternAnalyzer`; 1st analyzer — hardcoded-secret scanner (CWE-798); **MVP evaluation
+harness complete** — TASK-021 interface, TASK-020c metrics, TASK-020b orchestration+matching,
+TASK-020a corpora+validator.
 Prior: Engineering Foundation built and runtime-validated (2026-07-10) on
 `feature/engineering-foundation`. Earlier: TASK-010R / TASK-010S doc reconciliation; TASK-012 baseline.

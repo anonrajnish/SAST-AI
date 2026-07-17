@@ -72,6 +72,8 @@ def test_shipped_corpus_registry_is_valid() -> None:
         "web_curated_ts",
         "web_curated_html",
         "code_exec_py",
+        "weak_crypto_py",
+        "weak_crypto_js",
     }
 
 

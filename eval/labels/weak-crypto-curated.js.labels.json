@@ -1,0 +1,67 @@
+{
+  "corpus_id": "weak_crypto_js",
+  "language": "javascript",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "weak_hash-vuln-1",
+      "corpus_id": "weak_crypto_js",
+      "language": "javascript",
+      "location": {
+        "file": "vulnerable_1.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-328",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Weak hash: MD5"
+    },
+    {
+      "label_id": "weak_cipher-vuln-1",
+      "corpus_id": "weak_crypto_js",
+      "language": "javascript",
+      "location": {
+        "file": "vulnerable_2.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-327",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Weak cipher: DES"
+    },
+    {
+      "label_id": "weak_hash-safe-1",
+      "corpus_id": "weak_crypto_js",
+      "language": "javascript",
+      "location": {
+        "file": "secure_1.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-328",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: SHA-256"
+    },
+    {
+      "label_id": "weak_cipher-safe-1",
+      "corpus_id": "weak_crypto_js",
+      "language": "javascript",
+      "location": {
+        "file": "secure_2.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-327",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: AES-GCM"
+    }
+  ]
+}
