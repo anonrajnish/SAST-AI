@@ -255,13 +255,42 @@ purely additive (no edits to `runner.py`/`evaluation.py`/`models.py`/`loader.py`
   a real `run_evaluation` output on `web_curated_js` (TP=FP=FN=1 → P=R=F1=0.5); empty report yields
   all-zero metrics with no exception; `model_dump` confirms all six are stored fields.
 
+## Completed — Callable evaluation interface (TASK-021 — 2026-07-17)
+The single reusable entry point over the finished harness, on branch
+`feature/task-020a-evaluation-foundation`. Given a dependency-injected `Detector` and a corpus id,
+it delegates to the orchestrator and computes metrics, returning one serializable result. Fully DI
+(the caller locates registry/labels/corpus dirs); analyzer-agnostic; **no CLI, no REST, no AI, no
+analyzer, no orchestration duplicated**. Purely additive — no edits to any existing module
+(`__init__.py` intentionally left unchanged until the public API stabilizes).
+
+- **Interface** (`eval/harness/interface.py`): `EvaluationStatus` (`evaluated` / `integrity_failed`);
+  `EvaluationResult` (frozen, `extra="forbid"`: `corpus_id`, `status`, `detector_name`, `integrity`,
+  `evaluation`, `metrics`); `evaluate_corpus(detector, corpus_id, *, registry, labels_dir,
+  corpus_base_dir, detector_name=None) -> EvaluationResult`.
+- **Flow**: delegates to `run_evaluation` (loader → validator → matcher); on integrity pass computes
+  `compute_metrics`; on integrity fail returns `status=INTEGRITY_FAILED` with `metrics`/`evaluation`
+  = `None` and the detector not run. Operational faults (unknown corpus, unreadable/invalid labels)
+  propagate as `eval.harness.errors` types; no new exception types added.
+- **Deferred (per approved design)**: candidate-vs-baseline deltas / `eval_gate` (Phase 4b learning
+  loop) — the interface returns `Metrics` as the diffable building block; the `evaluate_corpus_at`
+  layout resolver and any `__init__` re-exports were declined this slice.
+- **Tests** (`eval/harness/tests/test_interface.py`): 7 tests — happy path on real committed
+  `web_curated_js` (status EVALUATED, P=R=F1=0.5, `detector_name` propagated), default `detector_name`,
+  unknown corpus raises `CorpusRegistryError`, integrity failure returns a structured result with the
+  detector skipped, JSON serializability (`model_dump(mode="json")`), frozen/`extra="forbid"`.
+- **DoD gates green** (root `.venv`): `ruff check eval/harness` clean; `mypy --strict eval/harness`
+  clean (21 files); `pytest eval/harness/tests` = 93 passed (7 new). Manual validation:
+  `evaluate_corpus` on real `web_curated_js` → EvaluationResult (TP=FP=FN=1, P=R=F1=0.5), full result
+  JSON-serialized (6 keys), and an integrity-failure corpus returned `status=integrity_failed`,
+  `metrics=None` with no exception.
+
 ## In Progress
 - ZIP upload module (TASK-130)
 
 ## Pending (next up — MVP critical path)
-- Evaluation harness: **TASK-020a/b/c complete** (corpora + runner/orchestration + metrics). **Next:**
-  TASK-021 callable eval interface (per-candidate precision/recall deltas vs active version). Deferred
-  within the harness: metric aggregation across corpora (micro/macro/weighted) and per-rule/per-language
+- Evaluation harness: **TASK-020a/b/c + TASK-021 complete** — corpora + runner/orchestration + metrics
+  + callable interface (`evaluate_corpus`). Deferred within the harness: candidate-vs-baseline deltas
+  (Phase 4b), metric aggregation across corpora (micro/macro/weighted), and per-rule/per-language
   breakdowns. OWASP Benchmark, Juliet, and the external fetcher remain **deferred to v2.0**
   (TASK-020a-F/J/C).
 - GitNexus `--pdg` spike (TASK-002 → TASK-003D)
@@ -287,16 +316,16 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (TASK-020c metrics; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (TASK-021 callable interface; awaiting human review before merge)
 
 ## Last Completed Task
-TASK-020c — eval metrics layer: `eval/harness/metrics.py` (`Metrics` immutable 6-field result +
-`compute_metrics(report)`) + `eval/harness/tests/test_metrics.py` (9 tests), on
-`feature/task-020a-evaluation-foundation` (2026-07-17); reuses `EvaluationReport` unchanged; pure
-computation, no scanning/loading/orchestration/AI/CLI; aggregation deferred to a later slice. DoD
-gates green (ruff/mypy clean; pytest 86 passed); awaiting human review before merge. This completes
-the MVP eval-harness pipeline TASK-020a/b/c (corpora → runner/orchestration → metrics); TASK-021
-(callable interface) remains. Prior: TASK-020b Slice 2 — single-corpus orchestration
+TASK-021 — callable evaluation interface: `eval/harness/interface.py` (`EvaluationStatus`,
+`EvaluationResult`, `evaluate_corpus`) + `eval/harness/tests/test_interface.py` (7 tests), on
+`feature/task-020a-evaluation-foundation` (2026-07-17); fully DI, reuses the orchestrator + metrics
+unchanged; no CLI/REST/AI/analyzer; deltas deferred to Phase 4b. DoD gates green (ruff/mypy clean;
+pytest 93 passed); awaiting human review before merge. **This completes the MVP evaluation harness
+end to end (TASK-020a/b/c + TASK-021):** corpora → runner/orchestration → metrics → callable entry
+point. Prior: TASK-020c metrics (`metrics.py`); TASK-020b Slice 2 — single-corpus orchestration
 (`evaluation.py`); TASK-020b Slice 1 — runner result contract + matching (`runner.py`); TASK-020a
 complete for MVP — Web corpus slice (`web_curated_*`); language-agnostic reconciliation; Slice 4
 `project_curated` (Python) corpus; Slice 3 layout; Slice 2 validator; Slice 1 ground-truth contract.
