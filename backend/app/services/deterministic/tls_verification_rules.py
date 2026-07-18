@@ -17,7 +17,7 @@ No data-flow — the presence of the disabling flag is the finding.
 
 from __future__ import annotations
 
-from eval.harness.models import Language
+from contracts import Language
 
 from .rules import PatternRule
 

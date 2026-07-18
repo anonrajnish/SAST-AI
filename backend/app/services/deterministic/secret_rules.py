@@ -8,7 +8,7 @@ data-flow. Applies across all MVP languages (Python + Web).
 
 from __future__ import annotations
 
-from eval.harness.models import Language
+from contracts import Language
 
 from .rules import PatternRule
 

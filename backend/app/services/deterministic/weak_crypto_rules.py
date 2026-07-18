@@ -12,7 +12,7 @@ Best-Practice recommendation (migrate to AES), not a CWE-327/328 vulnerability.
 
 from __future__ import annotations
 
-from eval.harness.models import Language
+from contracts import Language
 
 from .rules import PatternRule
 

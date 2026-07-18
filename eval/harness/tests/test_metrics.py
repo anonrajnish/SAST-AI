@@ -10,8 +10,10 @@ from pydantic import ValidationError
 from ..evaluation import run_evaluation
 from ..loader import load_corpus_registry
 from ..metrics import Metrics, compute_metrics
-from ..models import SourceLocation, Verdict
-from ..runner import EvaluationReport, Finding, LabelOutcome, MatchOutcome
+from contracts import Finding, SourceLocation
+
+from ..models import Verdict
+from ..runner import EvaluationReport, LabelOutcome, MatchOutcome
 
 _REPO_ROOT = Path(__file__).parents[3]
 _EVAL = _REPO_ROOT / "eval"

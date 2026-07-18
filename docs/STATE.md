@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (deterministic framework stabilization pass — registry, test consolidation, doc refresh; prior: 6th/final analyzer reverse tabnabbing — MVP analyzer suite complete; 5th TLS verification disabled; 4th unsafe deserialization; 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
+**Updated:** 2026-07-18 (Scan Pipeline Slice 0 — shared `contracts` package (M3); prior: deterministic framework stabilization pass; 6th/final analyzer reverse tabnabbing — MVP analyzer suite complete; 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -498,6 +498,42 @@ for later. The scanning engine (`rules.py`) and `PatternAnalyzer` (`analyzer.py`
   called **without** `detector_name` correctly defaults it from each analyzer; all analyzer corpora
   still P=1.0/R=1.0.
 
+## MVP Scan Pipeline — approved design (2026-07-18)
+Deterministic scan pipeline over an extracted repo root, built in incremental slices. Accepts a
+repo root + Target Languages selection (Auto Detect / Python / Web / both); Auto detects supported
+languages and runs the matching analyzer groups (structured "no supported languages" result when
+none); obtains analyzers **exclusively from the deterministic registry**; runs them deterministically
+(fail-fast via `ScanExecutionError`); aggregates findings (language-scoped to the resolved groups)
+into one triage-ready `ScanResult` with summary info (detected/selected groups, analyzers executed,
+files scanned, findings count). **No** GitNexus / taint / REST / SARIF / resource budgets / finding_id
+in this milestone. Approved adjustments: analyzer metadata (language groups, CWE coverage) lives in
+the **registry** (not on `PatternAnalyzer`); manual selection supports Python, Web, or both.
+Slices: **0 shared contract (M3) ✅** → 1 language foundation → 2 resolution + registry selection →
+3 execution + aggregation → 4 triage-ready shaping.
+
+## Completed — Scan Pipeline Slice 0: shared `contracts` package (M3, 2026-07-18)
+Relocated the shared analysis contract out of the eval package so the backend no longer depends on
+`eval.*` for its core value types (review item M3, done at the Scan Pipeline milestone as planned).
+
+- **New neutral repo-root `contracts/` package** (with `py.typed`): owns `Language`,
+  `SourceLocation`, `Finding`, the `Detector` protocol, and the validated field types
+  (`NonEmptyStr`/`RelativePath`/`CweStr`). Both the backend and the eval harness import from here, so
+  a `Finding` is **one class across the boundary** (verified: `eval.harness.runner.Finding is
+  contracts.Finding`).
+- **`eval` is now a package** (`eval/__init__.py`) so both import roots resolve `contracts` under a
+  single top-level (repo root). `eval.harness.models`/`runner`/`evaluation` import the moved types
+  from `contracts` and re-export them (via `__all__`) for backward compatibility; `Verdict`,
+  `CorpusKind`, `ChecksumStr`, and the corpus/label models stay in `eval.harness.models`.
+- **Backend `app/` no longer imports `eval.*`** — the deterministic engine, `PatternAnalyzer`, all
+  six rule packs, and the registry now import `Finding`/`SourceLocation`/`CweStr`/`Language` from
+  `contracts`. Engine/analyzer **logic is unchanged** (import source only). The eval harness still
+  owns scoring; backend harness *tests* legitimately import harness APIs from `eval.harness`.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (30 files), `pytest` = **58 passed**, coverage
+  **99.30%**; eval + contracts `ruff`/`mypy --strict` clean (24 files), `pytest` = **104 passed**.
+  Manual validation: `Finding`/`SourceLocation`/`Language` are a single class across the boundary,
+  analyzers emit `contracts.Finding`, `grep` confirms no `from eval` in `app/`, and end-to-end
+  `evaluate_corpus` scoring is unchanged (weak_crypto_py P=1.0/R=1.0).
+
 ## Deferred (was In Progress)
 - ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
   (see TASK_BACKLOG Phase 1); resumes when Phase 1 is scheduled. Current active work stream is the
@@ -535,11 +571,20 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (deterministic framework stabilization pass — registry + test consolidation + doc refresh; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Scan Pipeline Slice 0 — shared contracts package / M3; awaiting human review before merge)
 
 ## Last Completed Task
-Deterministic framework stabilization pass (approved review items M1/M2/S1/S2/S3/S4/S6; M3 + S5
-deferred). Added the analyzer registry (`registry.py`: `DETERMINISTIC_ANALYZERS` /
+Scan Pipeline **Slice 0** — shared `contracts` package (M3 relocation). Moved `Language`,
+`SourceLocation`, `Finding`, and the `Detector` protocol (+ validated field types) into a new
+neutral repo-root `contracts/` package (with `py.typed`); made `eval` a package (`eval/__init__.py`)
+so both roots resolve `contracts` under one import root; `eval.harness` re-exports the moved types
+for backward compatibility; backend `app/` now imports the contract from `contracts` and **no longer
+imports `eval.*`** (engine/analyzer logic unchanged — import source only). `Finding` is a single
+class across the boundary (verified). Backend gates green (ruff/mypy clean; pytest 58 passed; coverage
+99.30%); eval + contracts gates green (ruff/mypy --strict clean, 24 files; pytest 104 passed); manual
+validation passed; awaiting human review before merge. Next: Scan Pipeline Slice 1 (language
+foundation). Prior: deterministic framework stabilization pass (approved review items M1/M2/S1/S2/S3/
+S4/S6; S5 deferred). Added the analyzer registry (`registry.py`: `DETERMINISTIC_ANALYZERS` /
 `ANALYZERS_BY_NAME`, re-exported from the package `__init__`) as the single source of truth;
 `evaluate_corpus` now defaults `detector_name` from the detector's own attribute (removed the
 duplicated name string from every caller/test); added a shared `write_file` conftest fixture and

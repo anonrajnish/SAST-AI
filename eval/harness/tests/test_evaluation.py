@@ -11,8 +11,7 @@ from pydantic import ValidationError
 from ..errors import CorpusRegistryError
 from ..evaluation import CorpusEvaluation, run_evaluation
 from ..loader import load_corpus_registry, resolve_within_directory
-from ..models import SourceLocation
-from ..runner import Finding
+from contracts import Finding, SourceLocation
 from ..validator import IntegrityIssueKind
 
 _REPO_ROOT = Path(__file__).parents[3]

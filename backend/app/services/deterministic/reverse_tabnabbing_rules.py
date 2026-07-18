@@ -15,7 +15,7 @@ scope by design (no data-flow, no contextual browser-behavior analysis).
 
 from __future__ import annotations
 
-from eval.harness.models import Language
+from contracts import Language
 
 from .rules import PatternRule
 

@@ -13,7 +13,7 @@ from app.services.deterministic.rules import (
     language_for,
     scan_tree,
 )
-from eval.harness.models import Language
+from contracts import Language
 
 _RULE = PatternRule(
     id="test-token",

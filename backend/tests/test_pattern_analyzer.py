@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.services.deterministic.analyzer import PatternAnalyzer
 from app.services.deterministic.rules import PatternRule
-from eval.harness.models import Language
+from contracts import Language
 
 _RULE = PatternRule(
     id="r1",

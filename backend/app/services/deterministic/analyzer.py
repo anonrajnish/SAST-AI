@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from eval.harness.runner import Finding
+from contracts import Finding
 
 from .rules import PatternRule, scan_tree
 

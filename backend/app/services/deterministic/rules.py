@@ -19,8 +19,7 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 
-from eval.harness.models import CweStr, Language, SourceLocation
-from eval.harness.runner import Finding
+from contracts import CweStr, Finding, Language, SourceLocation
 from pydantic import BaseModel, ConfigDict
 
 _MAX_FILE_BYTES = 1_000_000

@@ -20,7 +20,9 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
 
-from .models import CweStr, LabelSet, NonEmptyStr, SourceLocation, Verdict
+from contracts import Finding, SourceLocation
+
+from .models import LabelSet, Verdict
 
 
 class MatchOutcome(StrEnum):
@@ -32,23 +34,6 @@ class MatchOutcome(StrEnum):
     TRUE_POSITIVE = "true_positive"
     FALSE_POSITIVE = "false_positive"
     FALSE_NEGATIVE = "false_negative"
-
-
-class Finding(BaseModel):
-    """A single location a detector reports as (potentially) vulnerable.
-
-    Reuses :class:`~eval.harness.models.SourceLocation` so a finding's file and
-    line range carry the same relative-path/anti-traversal validation as a label.
-    ``cwe``/``rule_id``/``detector`` are optional provenance a later CWE-aware
-    matching refinement (or TASK-020c) may consume.
-    """
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    location: SourceLocation
-    cwe: CweStr | None = None
-    rule_id: NonEmptyStr | None = None
-    detector: NonEmptyStr | None = None
 
 
 class LabelOutcome(BaseModel):

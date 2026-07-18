@@ -11,8 +11,7 @@ from pydantic import ValidationError
 from ..errors import CorpusRegistryError
 from ..interface import EvaluationResult, EvaluationStatus, evaluate_corpus
 from ..loader import load_corpus_registry
-from ..models import SourceLocation
-from ..runner import Finding
+from contracts import Finding, SourceLocation
 
 _REPO_ROOT = Path(__file__).parents[3]
 _EVAL = _REPO_ROOT / "eval"

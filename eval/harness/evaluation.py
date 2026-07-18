@@ -19,28 +19,17 @@ which propagate as :mod:`eval.harness.errors` types from the loader.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+from contracts import Detector
+
 from .loader import load_labels_for_corpus, resolve_within_directory
 from .models import CorpusRegistry
-from .runner import EvaluationReport, Finding, match_findings_to_labels
+from .runner import EvaluationReport, match_findings_to_labels
 from .validator import IntegrityReport, validate_label_set_against_corpus
 
-
-class Detector(Protocol):
-    """Interface an analyzer implements to be scored by the harness.
-
-    The harness treats a detector as an opaque static analyzer: it hands over the
-    resolved corpus root and consumes the returned findings as data. The concrete
-    analyzers live in ``app.services.deterministic`` (backend); the harness depends
-    only on this protocol, never on a specific analyzer.
-    """
-
-    def scan(self, corpus_root: Path) -> list[Finding]:
-        """Statically analyze the corpus at ``corpus_root`` and report findings."""
-        ...
+__all__ = ["CorpusEvaluation", "Detector", "run_evaluation"]
 
 
 class CorpusEvaluation(BaseModel):

@@ -5,8 +5,10 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from ..models import GroundTruthLabel, Language, LabelSet, SourceLocation, Verdict
-from ..runner import Finding, MatchOutcome, match_findings_to_labels
+from contracts import Finding, Language, SourceLocation
+
+from ..models import GroundTruthLabel, LabelSet, Verdict
+from ..runner import MatchOutcome, match_findings_to_labels
 
 
 def _label(

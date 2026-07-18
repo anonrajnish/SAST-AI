@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 from app.services.deterministic import ANALYZERS_BY_NAME, DETERMINISTIC_ANALYZERS
-from eval.harness.evaluation import Detector
+from contracts import Detector
 from eval.harness.interface import EvaluationStatus, evaluate_corpus
 from eval.harness.loader import load_corpus_registry
 
