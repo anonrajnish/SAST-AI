@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (Repository Upload Slice 2 — upload→scan orchestration; prior: Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
+**Updated:** 2026-07-18 (REST API Slice 1 — /version endpoint + API architecture; prior: Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -697,10 +697,89 @@ scheduling, GitNexus, AI, SARIF export, ZIP-bomb protection.
   MANUAL scoping honored; empty ZIP → `NO_SUPPORTED_LANGUAGES`; Zip Slip `PathTraversalError`
   propagates unchanged.
 
+## Completed — Scan Job Lifecycle Slice 1: immutable in-memory scan-job models (2026-07-18)
+First slice of the Scan Job Lifecycle (skeleton portion of TASK-120 "Scan orchestrator + job
+lifecycle"), under the new `backend/app/services/jobs/` package. Introduces the **Scan Job**
+concept — an immutable lifecycle *around* an `ArchiveScanResult` — **without changing the upload
+subsystem or scan pipeline**. Synchronous today; the model shape prepares for future async.
+**In-memory only** — no DB, persistence, Celery, background workers, queues, REST/WebSockets,
+progress reporting, cancellation, or retries (all explicitly out of scope this slice).
+
+- **Status vocabulary** (`jobs/models.py` `ScanJobStatus`, StrEnum): `PENDING`, `RUNNING`,
+  `COMPLETED`, `FAILED` — a subset of the architecture's `scans.status`
+  (pending/running/completed/failed/cancelled); **`RUNNING` is reserved** so a future async
+  executor can mark a job in progress without a model change, and **`cancelled` is deferred**
+  with cancellation.
+- **Immutable models** (frozen, `extra="forbid"`, fully typed, JSON-serializable, deterministic):
+  `ScanJobResult` wraps the successful `ArchiveScanResult` (kept distinct so job-level result
+  metadata can grow independently); `ScanJob` = `job_id`, `status`, `created_at`, optional
+  `completed_at` / `result` / `error`, plus an `is_terminal` property. A `model_validator`
+  enforces the state machine's invariants (terminal ⇒ `completed_at`; `COMPLETED` ⇒ `result`
+  and no `error`; `FAILED` ⇒ non-empty `error` and no `result`; non-terminal ⇒ none of these),
+  so no inconsistent job can be constructed.
+- **Transitions** (`jobs/lifecycle.py`, pure & deterministic — each returns a **new** snapshot):
+  `create_scan_job(*, job_id=None, created_at=None) -> PENDING`; `complete_scan_job(job, result,
+  *, completed_at=None) -> COMPLETED`; `fail_scan_job(job, error, *, completed_at=None) ->
+  FAILED`. `job_id`/timestamps are injectable for full determinism (defaults: `uuid4` / UTC now).
+  `complete`/`fail` accept any non-terminal job (PENDING **or** RUNNING → forward-compatible);
+  transitioning a terminal job raises the typed `InvalidScanJobTransitionError`
+  (`jobs/errors.py`, `ScanJobError` base; carries `current_status` + `attempted`).
+- **Existing code unchanged**: no edits to `upload/`, `scan/`, `deterministic/`, `contracts`, or
+  `eval`. `ArchiveScanResult` remains the scan output; `ScanJob` only owns the lifecycle around it.
+- **Tests** (`backend/tests/test_scan_job_lifecycle.py`, 23 tests): creation (PENDING; unique UUID
+  + tz-aware defaults), successful completion (result attached, `created_at` carried, defaults),
+  completion **from RUNNING** (forward-compat), transition returns a new snapshot leaving the
+  original untouched, failed completion, invalid transitions (complete/fail on COMPLETED or
+  FAILED → `InvalidScanJobTransitionError` with status/verb), parametrized state-consistency
+  invariants (6 inconsistent constructions rejected) incl. empty-error rejection, JSON round-trip
+  + deterministic serialization, immutability, and an integration test running a **real**
+  `scan_archive` output through `create -> complete`.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (48 files), `pytest` = **149 passed** (+23),
+  coverage **99.70%** (jobs package 100%); eval + contracts gates unaffected. Manual validation:
+  create→complete (real scan output, 1 finding; original job unchanged), create→fail, invalid
+  transition rejected with typed error, JSON round-trip equal, and attribute mutation blocked.
+
+## Completed — REST API Slice 1: /version endpoint + API architecture (2026-07-18)
+First slice of the incremental REST API build-out. The FastAPI **application skeleton, versioned
+router structure, `/health` (+ `/live`/`/ready`), and DI wiring (`SettingsDep`/`SessionDep`)
+already exist from the Engineering Foundation** — this slice **reuses them unchanged** and adds the
+one genuinely-missing piece, the **`/version` endpoint**, while establishing the API architecture
+for future scan endpoints. No scan/upload/job endpoints, no auth, no DB/persistence, no workers,
+WebSockets, AI, or GitNexus (all out of scope).
+
+- **App metadata single source of truth** (`app/meta.py`, new): `APP_NAME` / `APP_VERSION` /
+  `API_VERSION`. The application factory now reads `APP_NAME`/`APP_VERSION` from it (was hardcoded
+  in `main.py`), so the FastAPI title/version and the `/version` payload **cannot drift**.
+- **`/version` endpoint** (`app/api/v1/version.py`, new): `GET /api/v1/version` → typed
+  `VersionResponse` (`name`, `version`, `api_version`, `app_env`). Read-only; touches no datastore
+  and **no business subsystem** (upload/scan/jobs) — it reads static metadata plus the injected
+  settings, demonstrating the DI pattern future feature routers reuse.
+- **Router wiring** (`app/api/router.py`): the version router is mounted alongside health on the
+  `api_router` aggregator (the single `/api/v1` extension point where future scan routers will be
+  added). No new prefixes beyond health/version.
+- **Existing code**: `main.py` edited only to source title/version from `app/meta.py`; `router.py`
+  gains the version include + an extension-point docstring. `config.py`, `health.py`,
+  `dependencies.py`, and every service package (`upload`/`scan`/`jobs`/`deterministic`/`contracts`/
+  `eval`) are **unchanged**.
+- **Tests** (`backend/tests/test_version.py`, 6 tests): `/version` returns the metadata and its
+  exact field set; the reported version equals the OpenAPI/app version (drift guard); health routes
+  still 200; **no scan/upload endpoints are exposed**; and the OpenAPI path set is exactly
+  `{/health, /health/live, /health/ready, /version}` (architecture-only guarantee).
+- **DoD gates green**: backend `ruff`/`mypy app` clean (50 files), `pytest` = **155 passed** (+6),
+  coverage **99.70%** (new `version.py`/`meta.py` 100%); eval + contracts gates unaffected. Manual
+  validation: `GET /api/v1/version` → 200 `{name, version, api_version, app_env}`, app title/version
+  sourced from the shared constant, only health+version paths exposed, health intact.
+
 ## In Progress
 - Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–2 complete** (validated
-  ZIP extraction + upload→scan orchestration, above). Later slices: ZIP-bomb / resource limits,
-  ClamAV, extraction cleanup lifecycle, and the REST/upload API + persistence.
+  ZIP extraction + upload→scan orchestration). Later slices: ZIP-bomb / resource limits, ClamAV,
+  extraction cleanup lifecycle, and the REST/upload API + persistence.
+- REST API (TASK-110/112 surface) — **Slice 1 complete** (/version + API architecture, above). Later
+  slices: scan-trigger + scan-status endpoints wiring `create_scan_job → scan_archive →
+  complete/fail`, request/response schemas, then API middleware (rate-limit, security headers, CORS).
+- Scan Job Lifecycle (TASK-120 skeleton) — **Slice 1 complete** (immutable in-memory models +
+  transitions, above). Later slices: an in-memory job store/registry, wiring `create → run
+  scan_archive → complete/fail`, then (much later) async execution (Celery), progress, cancellation.
 
 ## Pending (next up — MVP critical path)
 - Deterministic analyzers: **MVP pattern-analyzer suite COMPLETE** — secrets (CWE-798) +
@@ -734,10 +813,33 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Repository Upload Slice 2 — upload→scan orchestration; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (REST API Slice 1 — /version endpoint + API architecture; awaiting human review before merge)
 
 ## Last Completed Task
-Repository Upload **Slice 2** — upload→scan orchestration. Added the minimal orchestration layer
+REST API **Slice 1** — `/version` endpoint + API architecture. Reused the existing Engineering-
+Foundation FastAPI skeleton (app factory, `/api/v1` router aggregator, `/health` + `/live`/`/ready`,
+`SettingsDep`/`SessionDep`) **unchanged** and added the missing pieces: `app/meta.py` (single source
+of truth for `APP_NAME`/`APP_VERSION`/`API_VERSION`) and `app/api/v1/version.py` (`GET /api/v1/version`
+→ typed `VersionResponse{name, version, api_version, app_env}`, DI-wired via `SettingsDep`, touching
+no datastore or business subsystem); mounted the version router on `api_router`; `main.py` now sources
+the FastAPI title/version from `app/meta.py` (drift-proof). No scan/upload/job endpoints, auth, DB,
+persistence, workers, WebSockets, AI, or GitNexus. Backend gates green (ruff/mypy clean, 50 files;
+pytest 155 passed; coverage 99.70%, new modules 100%); eval+contracts unaffected; manual validation:
+`/api/v1/version` → 200 with correct metadata, OpenAPI path set exactly `{health, health/live,
+health/ready, version}`, no scan endpoints exposed; awaiting human review before merge. Prior:
+Scan Job Lifecycle **Slice 1** — immutable in-memory scan-job models + transitions, under the new
+`backend/app/services/jobs/` package. `ScanJobStatus` (PENDING/RUNNING/COMPLETED/FAILED; RUNNING
+reserved for future async, cancelled deferred); frozen `ScanJobResult` (wraps `ArchiveScanResult`)
+and `ScanJob` (job_id/status/created_at/completed_at/result/error + `is_terminal`) with a
+`model_validator` enforcing state-machine invariants; pure deterministic transitions
+`create_scan_job` (→PENDING) / `complete_scan_job` (→COMPLETED) / `fail_scan_job` (→FAILED), each
+returning a new snapshot, injectable job_id/timestamps, non-terminal→terminal only (else the typed
+`InvalidScanJobTransitionError`). In-memory only (no DB/persistence/Celery/workers/queues/REST/
+WebSockets/progress/cancellation/retries). Upload subsystem + scan pipeline unchanged;
+`ArchiveScanResult` stays the scan output. Backend gates green (ruff/mypy clean, 48 files; pytest
+149 passed; coverage 99.70%, jobs package 100%); eval+contracts unaffected; manual validation
+exercised create→complete/fail, invalid transitions, JSON round-trip, and immutability; awaiting
+human review before merge. Prior: Repository Upload **Slice 2** — upload→scan orchestration. Added the minimal orchestration layer
 `scan_archive(archive_path, config, *, workspace_dir=None) -> ArchiveScanResult` (`upload/
 orchestration.py`) that coordinates the two completed subsystems unchanged — `ZIP -> extract_zip()
 -> scan_repository()` — and returns both results in one frozen `ArchiveScanResult` (`extraction:

@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from app.api.router import api_router
 from app.config import get_settings
 from app.core.logging import configure_logging, get_logger
+from app.meta import APP_NAME, APP_VERSION
 
 
 def create_app() -> FastAPI:
@@ -20,8 +21,8 @@ def create_app() -> FastAPI:
     configure_logging(level=settings.log_level, json_logs=not settings.debug)
 
     app = FastAPI(
-        title="AI SAST Platform",
-        version="0.1.0",
+        title=APP_NAME,
+        version=APP_VERSION,
         debug=settings.debug,
     )
     app.include_router(api_router, prefix="/api/v1")
