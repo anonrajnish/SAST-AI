@@ -41,6 +41,18 @@ class Language(StrEnum):
     CSHARP = "csharp"
 
 
+class LanguageGroup(StrEnum):
+    """A coarse group of source languages the scan pipeline targets.
+
+    ``PYTHON`` is the backend language; ``WEB`` bundles JavaScript, TypeScript, and HTML
+    into one capability (per the finalized MVP roadmap). Shared vocabulary: the scan
+    configuration, language detection, and the analyzer registry metadata all use it.
+    """
+
+    PYTHON = "python"
+    WEB = "web"
+
+
 def _ensure_nonempty(value: str) -> str:
     if not value.strip():
         raise ValueError("value must be a non-empty string")

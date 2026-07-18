@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (Scan Pipeline Slice 0 — shared `contracts` package (M3); prior: deterministic framework stabilization pass; 6th/final analyzer reverse tabnabbing — MVP analyzer suite complete; 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
+**Updated:** 2026-07-18 (Scan Pipeline Slice 2 — resolution + registry-driven selection; prior: Slice 1 language foundation; Slice 0 shared `contracts` package (M3); deterministic framework stabilization pass; 6th/final analyzer reverse tabnabbing — MVP analyzer suite complete)
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -508,8 +508,8 @@ into one triage-ready `ScanResult` with summary info (detected/selected groups, 
 files scanned, findings count). **No** GitNexus / taint / REST / SARIF / resource budgets / finding_id
 in this milestone. Approved adjustments: analyzer metadata (language groups, CWE coverage) lives in
 the **registry** (not on `PatternAnalyzer`); manual selection supports Python, Web, or both.
-Slices: **0 shared contract (M3) ✅** → 1 language foundation → 2 resolution + registry selection →
-3 execution + aggregation → 4 triage-ready shaping.
+Slices: **0 shared contract (M3) ✅** → **1 language foundation ✅** → **2 resolution + registry
+selection ✅** → 3 execution + aggregation → 4 triage-ready shaping.
 
 ## Completed — Scan Pipeline Slice 0: shared `contracts` package (M3, 2026-07-18)
 Relocated the shared analysis contract out of the eval package so the backend no longer depends on
@@ -533,6 +533,49 @@ Relocated the shared analysis contract out of the eval package so the backend no
   Manual validation: `Finding`/`SourceLocation`/`Language` are a single class across the boundary,
   analyzers emit `contracts.Finding`, `grep` confirms no `from eval` in `app/`, and end-to-end
   `evaluate_corpus` scoring is unchanged (weak_crypto_py P=1.0/R=1.0).
+
+## Completed — Scan Pipeline Slice 1: language foundation (2026-07-18)
+The target-language vocabulary and repository language-group detection, under the new
+`backend/app/services/scan/` package. Foundation only — **no analyzer selection, no execution, no
+AUTO/MANUAL resolution, no vulnerability scanning** (later slices).
+
+- **Models** (`scan/models.py`): `LanguageGroup` (`PYTHON`, `WEB` — Web bundles JS/TS/HTML);
+  `TargetMode` (`AUTO`, `MANUAL`); `ScanConfig` (frozen, `extra="forbid"`) with validation —
+  **AUTO must carry no groups; MANUAL requires ≥1 group** — plus `ScanConfig.auto()` /
+  `ScanConfig.manual(groups)` constructors (manual supports Python, Web, or both).
+- **Detection** (`scan/detection.py`): `GROUP_BY_LANGUAGE` / `group_for_language` map the shared
+  `contracts.Language` to a group (future-roadmap Java/C++/Go/C# map to nothing → ignored);
+  `detect_language_groups(repo_root)` walks the tree by file extension (reusing `language_for` from
+  the deterministic engine), skips symlinks/non-files, ignores unsupported types, and returns only
+  the detected groups (empty for an empty/missing/unsupported tree). Read-only; no file contents read.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (33 files), `pytest` = **73 passed**, coverage
+  **99.41%**; eval + contracts gates unaffected (still green). Manual validation: committed corpora →
+  `{python, web}`, a Python-only corpus → `{python}`, an HTML corpus → `{web}`, `docs/` → `{}`; and
+  the AUTO-with-groups / MANUAL-empty configs both raise `ValidationError`.
+
+## Completed — Scan Pipeline Slice 2: resolution + registry-driven selection (2026-07-18)
+AUTO/MANUAL target-group resolution and analyzer selection sourced entirely from the deterministic
+registry. **No execution, no aggregation, no `scan_repository()`** (later slices). `ScanConfig` and
+`PatternAnalyzer` unchanged.
+
+- **`LanguageGroup` moved to `contracts`** (shared vocabulary, alongside `Language`) so the
+  deterministic registry can carry group metadata without a `scan → deterministic → scan` import
+  cycle; `scan` re-exports it, so `ScanConfig` and the Slice-1 public API are unchanged.
+- **Registry enriched as the single source of truth** (`deterministic/registry.py`): new frozen
+  `AnalyzerEntry` (analyzer + `language_groups` + `cwes`); `ANALYZER_REGISTRY` authors each analyzer's
+  metadata (five analyzers → `{PYTHON, WEB}`; reverse-tabnabbing → `{WEB}` only; CWE coverage per
+  analyzer). `DETERMINISTIC_ANALYZERS` / `ANALYZERS_BY_NAME` are now derived from it (backward
+  compatible). **Language metadata lives in the registry, not on `PatternAnalyzer`.**
+- **Resolution** (`scan/resolution.py`): `resolve_target_groups(config, detected_groups)` — AUTO →
+  detected groups; MANUAL → the selected groups (detection ignored).
+- **Selection** (`scan/selection.py`): `select_analyzers(groups, registry=ANALYZER_REGISTRY)` returns
+  the registry analyzers whose metadata groups intersect `groups`, in **registry order** (empty groups
+  → none); dependency-injectable registry; returns the registry's own analyzer instances.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (35 files), `pytest` = **84 passed**, coverage
+  **99.45%**; eval + contracts `ruff`/`mypy --strict` clean (24 files), `pytest` = **104 passed**.
+  Manual validation: AUTO resolves to detected, MANUAL ignores detected; `select_analyzers` →
+  Python = 5 analyzers (Web-only reverse-tabnabbing excluded), Web / Python+Web = all 6, empty = none,
+  all in registry order.
 
 ## Deferred (was In Progress)
 - ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
@@ -571,10 +614,28 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Scan Pipeline Slice 0 — shared contracts package / M3; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Scan Pipeline Slice 2 — resolution + registry-driven selection; awaiting human review before merge)
 
 ## Last Completed Task
-Scan Pipeline **Slice 0** — shared `contracts` package (M3 relocation). Moved `Language`,
+Scan Pipeline **Slice 2** — AUTO/MANUAL resolution + registry-driven analyzer selection.
+`resolve_target_groups(config, detected)` (AUTO→detected, MANUAL→selected); `select_analyzers(groups)`
+returns registry analyzers whose metadata groups intersect, in registry order. Enriched the
+deterministic registry as the single source of truth: `AnalyzerEntry` (analyzer + `language_groups` +
+`cwes`) + `ANALYZER_REGISTRY`, with `DETERMINISTIC_ANALYZERS`/`ANALYZERS_BY_NAME` derived from it;
+moved `LanguageGroup` to `contracts` to avoid an import cycle (scan re-exports it; `ScanConfig` and
+`PatternAnalyzer` unchanged — no language metadata on the analyzer). No execution/aggregation/
+`scan_repository` (later slices). Backend gates green (ruff/mypy clean, 35 files; pytest 84 passed;
+coverage 99.45%); eval+contracts gates green (ruff/mypy --strict clean, 24 files; pytest 104 passed);
+manual validation passed; awaiting human review before merge. Next: Scan Pipeline Slice 3 (execution +
+aggregation → `scan_repository`, `ScanResult`). Prior: Slice 1 — language foundation, under new
+`backend/app/services/scan/`:
+`LanguageGroup` (PYTHON/WEB), `TargetMode` (AUTO/MANUAL), `ScanConfig` (AUTO→no groups, MANUAL→≥1
+group; `auto()`/`manual()` constructors), and `detect_language_groups(repo_root)` (extension-based,
+read-only, symlink-skipping; future-roadmap languages ignored). No analyzer selection/execution/
+resolution/scanning (later slices). Backend gates green (ruff/mypy clean, 33 files; pytest 73 passed;
+coverage 99.41%); eval+contracts gates still green; manual validation passed; awaiting human review
+before merge. Next: Scan Pipeline Slice 2 (AUTO/MANUAL resolution + registry-driven analyzer
+selection). Prior: Slice 0 — shared `contracts` package (M3 relocation). Moved `Language`,
 `SourceLocation`, `Finding`, and the `Detector` protocol (+ validated field types) into a new
 neutral repo-root `contracts/` package (with `py.typed`); made `eval` a package (`eval/__init__.py`)
 so both roots resolve `contracts` under one import root; `eval.harness` re-exports the moved types

@@ -1,18 +1,20 @@
 """Registry of the deterministic pattern analyzers — the single source of truth.
 
-Every deterministic analyzer is a :class:`~app.services.deterministic.analyzer.PatternAnalyzer`
-that differs only by its rule pack and detector name. This module enumerates the shipped
-analyzers once, so callers (the future scan pipeline, tests, tooling) discover them from one
-place instead of importing each scanner ad hoc. Adding an analyzer means adding one entry here.
+Each :class:`AnalyzerEntry` pairs an analyzer instance with its authored metadata: the
+language groups it applies to and the CWEs it covers. Adding an analyzer means adding one
+entry here. The registry owns this metadata so :class:`PatternAnalyzer` can stay focused
+solely on scanning and expose no language information of its own.
 
-The registry holds analyzer *instances* (they are cheap and stateless). It knows nothing about
-evaluation corpora — the eval harness and its corpus ids stay on the other side of the
-``Detector`` seam.
+The registry knows nothing about evaluation corpora — the eval harness and its corpus ids
+stay on the other side of the ``Detector`` seam.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
+
+from contracts import LanguageGroup
 
 from .analyzer import PatternAnalyzer
 from .code_execution_scanner import CodeExecutionScanner
@@ -22,17 +24,35 @@ from .tls_verification_scanner import TlsVerificationScanner
 from .unsafe_deserialization_scanner import UnsafeDeserializationScanner
 from .weak_crypto_scanner import WeakCryptoScanner
 
-DETERMINISTIC_ANALYZERS: tuple[PatternAnalyzer, ...] = (
-    SecretScanner(),
-    CodeExecutionScanner(),
-    WeakCryptoScanner(),
-    UnsafeDeserializationScanner(),
-    TlsVerificationScanner(),
-    ReverseTabnabbingScanner(),
+_PYTHON_AND_WEB = frozenset({LanguageGroup.PYTHON, LanguageGroup.WEB})
+_WEB_ONLY = frozenset({LanguageGroup.WEB})
+
+
+@dataclass(frozen=True)
+class AnalyzerEntry:
+    """A deterministic analyzer plus its authored registry metadata."""
+
+    analyzer: PatternAnalyzer
+    language_groups: frozenset[LanguageGroup]
+    cwes: frozenset[str]
+
+
+ANALYZER_REGISTRY: tuple[AnalyzerEntry, ...] = (
+    AnalyzerEntry(SecretScanner(), _PYTHON_AND_WEB, frozenset({"CWE-798"})),
+    AnalyzerEntry(CodeExecutionScanner(), _PYTHON_AND_WEB, frozenset({"CWE-95"})),
+    AnalyzerEntry(WeakCryptoScanner(), _PYTHON_AND_WEB, frozenset({"CWE-327", "CWE-328"})),
+    AnalyzerEntry(UnsafeDeserializationScanner(), _PYTHON_AND_WEB, frozenset({"CWE-502"})),
+    AnalyzerEntry(TlsVerificationScanner(), _PYTHON_AND_WEB, frozenset({"CWE-295"})),
+    AnalyzerEntry(ReverseTabnabbingScanner(), _WEB_ONLY, frozenset({"CWE-1022"})),
 )
-"""All deterministic analyzers, in a stable order."""
+"""All deterministic analyzers with their metadata, in a stable order."""
+
+DETERMINISTIC_ANALYZERS: tuple[PatternAnalyzer, ...] = tuple(
+    entry.analyzer for entry in ANALYZER_REGISTRY
+)
+"""All deterministic analyzer instances, in registry order."""
 
 ANALYZERS_BY_NAME: Mapping[str, PatternAnalyzer] = {
-    analyzer.detector_name: analyzer for analyzer in DETERMINISTIC_ANALYZERS
+    entry.analyzer.detector_name: entry.analyzer for entry in ANALYZER_REGISTRY
 }
 """Lookup of analyzer by its ``detector_name`` (the provenance label on its findings)."""

@@ -8,6 +8,16 @@ as the single source of truth.
 
 from __future__ import annotations
 
-from .registry import ANALYZERS_BY_NAME, DETERMINISTIC_ANALYZERS
+from .registry import (
+    ANALYZER_REGISTRY,
+    ANALYZERS_BY_NAME,
+    DETERMINISTIC_ANALYZERS,
+    AnalyzerEntry,
+)
 
-__all__ = ["ANALYZERS_BY_NAME", "DETERMINISTIC_ANALYZERS"]
+__all__ = [
+    "ANALYZERS_BY_NAME",
+    "ANALYZER_REGISTRY",
+    "DETERMINISTIC_ANALYZERS",
+    "AnalyzerEntry",
+]
