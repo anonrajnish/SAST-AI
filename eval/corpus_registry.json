@@ -157,6 +157,30 @@
       "labels_path": "tls-verification-curated.js.labels.json",
       "license": "MIT",
       "notes": "Small in-repo curated disabled-TLS-verification cases (CWE-295) for the MVP deterministic analyzer suite."
+    },
+    {
+      "id": "reverse_tabnabbing_html",
+      "name": "Reverse Tabnabbing Curated (HTML)",
+      "kind": "project_curated",
+      "language": "html",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "reverse-tabnabbing-curated/html",
+      "labels_path": "reverse-tabnabbing-curated.html.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated reverse-tabnabbing cases (CWE-1022) for the MVP deterministic analyzer suite."
+    },
+    {
+      "id": "reverse_tabnabbing_js",
+      "name": "Reverse Tabnabbing Curated (JavaScript)",
+      "kind": "project_curated",
+      "language": "javascript",
+      "source_ref": null,
+      "checksum": null,
+      "local_path": "reverse-tabnabbing-curated/javascript",
+      "labels_path": "reverse-tabnabbing-curated.js.labels.json",
+      "license": "MIT",
+      "notes": "Small in-repo curated reverse-tabnabbing cases (CWE-1022) for the MVP deterministic analyzer suite."
     }
   ]
 }

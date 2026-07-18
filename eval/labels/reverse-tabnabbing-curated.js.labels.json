@@ -1,0 +1,67 @@
+{
+  "corpus_id": "reverse_tabnabbing_js",
+  "language": "javascript",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "reverse_tabnabbing-vuln-1",
+      "corpus_id": "reverse_tabnabbing_js",
+      "language": "javascript",
+      "location": {
+        "file": "vulnerable_1.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Reverse tabnabbing: window.open(_blank) without noopener"
+    },
+    {
+      "label_id": "reverse_tabnabbing-vuln-2",
+      "corpus_id": "reverse_tabnabbing_js",
+      "language": "javascript",
+      "location": {
+        "file": "vulnerable_2.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Reverse tabnabbing: window.open(computed, _blank) without noopener"
+    },
+    {
+      "label_id": "reverse_tabnabbing-safe-1",
+      "corpus_id": "reverse_tabnabbing_js",
+      "language": "javascript",
+      "location": {
+        "file": "secure_1.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: window.open with noopener"
+    },
+    {
+      "label_id": "reverse_tabnabbing-safe-2",
+      "corpus_id": "reverse_tabnabbing_js",
+      "language": "javascript",
+      "location": {
+        "file": "secure_2.js",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: window.open with noopener,noreferrer"
+    }
+  ]
+}

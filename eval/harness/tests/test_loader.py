@@ -78,6 +78,8 @@ def test_shipped_corpus_registry_is_valid() -> None:
         "unsafe_deserialization_js",
         "tls_verification_py",
         "tls_verification_js",
+        "reverse_tabnabbing_html",
+        "reverse_tabnabbing_js",
     }
 
 

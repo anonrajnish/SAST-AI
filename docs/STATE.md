@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (5th deterministic analyzer: TLS verification disabled; prior: 4th unsafe deserialization; 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
+**Updated:** 2026-07-18 (6th/final deterministic analyzer: reverse tabnabbing — MVP deterministic analyzer suite complete; prior: 5th TLS verification disabled; 4th unsafe deserialization; 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -317,9 +317,11 @@ data-flow / AI.** The eval harness (`eval/harness/*`) is unchanged.
 Pattern-based, high-confidence analyzers only (no taint/interprocedural/data-flow/AI), each paired
 with a small curated corpus (2 vulnerable + 2 safe). Order: **#1 Hardcoded secrets (CWE-798) ✅ →
 #2 Dynamic code execution (CWE-95) ✅ → #3 Weak cryptography (CWE-327/328) ✅ → #4 Unsafe
-deserialization (CWE-502) ✅ → #5 TLS verification disabled (CWE-295) ✅ → Reverse tabnabbing
-(CWE-1022)**. (Weak crypto was pulled ahead of tabnabbing, then — at the reviewer's direction —
-unsafe deserialization and then TLS-verify-off were prioritized ahead of tabnabbing.) The **partial
+deserialization (CWE-502) ✅ → #5 TLS verification disabled (CWE-295) ✅ → #6 Reverse tabnabbing
+(CWE-1022) ✅**. **MVP deterministic pattern-analyzer suite is now COMPLETE** (all six analyzers
+shipped and harness-measured). (Weak crypto was pulled ahead of tabnabbing, then — at the reviewer's
+direction — unsafe deserialization and then TLS-verify-off were prioritized ahead of tabnabbing.)
+The **partial
 DOM-XSS detector was deliberately dropped** — CWE-79 (and SQLi/CWE-89,
 command injection/CWE-78, path traversal/CWE-22, SSRF/CWE-918) are owned by the future taint engine
 (Phase 2: TASK-210/240/250/260), not by lower-precision pattern rules.
@@ -431,15 +433,50 @@ the loader id-set test touched).
   TP=2/FP=0/FN=0, **P=1.0, R=1.0**; safe `verify=True`/`ssl.create_default_context`/
   `rejectUnauthorized: true` confirmed **not** flagged.
 
+## Completed — Sixth (final) deterministic analyzer: reverse tabnabbing (2026-07-18)
+Reverse-tabnabbing analyzer (CWE-1022 use of web link to untrusted target with `window.opener`
+access), under `backend/app/services/deterministic/`. **Final analyzer in the MVP deterministic
+pattern-analyzer suite.** Reuses `PatternAnalyzer` **unchanged** and the scanning engine
+**unmodified** — a new rulepack + thin `ReverseTabnabbingScanner` wrapper only. **Deterministic;
+no taint/interprocedural/data-flow/AI/YAML rulepacks; no contextual browser-behavior analysis.**
+Harness logic unchanged (only corpus data + the loader id-set test touched).
+
+- **Rulepack** (`.../deterministic/reverse_tabnabbing_rules.py`): 2 `PatternRule`s. HTML — an `<a>`
+  tag with `target="_blank"` but no `rel="noopener"`/`rel="noreferrer"` in the same tag, matched
+  **case-insensitively** (`(?i)`, so `TARGET`/`Target`/`_BLANK` are detected). JS/TS —
+  `window.open(..., "_blank")` without `noopener` in the call. Negative-lookaheads are bounded to
+  the tag (`[^>]`) / statement (`[^;]`), so mitigated forms (`rel="noopener"`, `rel="noreferrer"`,
+  `rel="noopener noreferrer"`, `window.open(..., "noopener")`) are structurally excluded and a
+  trailing `<!-- ... noopener ... -->` marker comment does not suppress a genuine finding. Scope is
+  limited to `<a>` links and `window.open` (non-link `<form>`/`<area>` out of scope). ReDoS-safe.
+- **`ReverseTabnabbingScanner`** (`.../deterministic/reverse_tabnabbing_scanner.py`): a
+  `PatternAnalyzer` subclass (detector name `reverse-tabnabbing-scanner`).
+- **Two curated corpora** (both 2 vuln + 2 safe, CWE-1022) so HTML **and** JS rules are measurable:
+  `reverse_tabnabbing_html` (`reverse-tabnabbing-curated/html/`) and `reverse_tabnabbing_js`
+  (`reverse-tabnabbing-curated/javascript/`) + labels + registry descriptors + eval regression test
+  (`test_reverse_tabnabbing_corpus.py`); `test_loader.py` id-set updated. HTML `vulnerable_2.html`
+  uses mixed-case `Target="_blank"` to exercise the case-insensitive rule through the harness. Corpus
+  files are inert (never rendered/opened/executed); external URLs are `example.com`/`.org` placeholders.
+- **Single-line limitation documented** (per approval): multi-line `<a>` tags and opener-nulling on a
+  later line are out of scope by design (no data-flow).
+- **No sensitive-data leakage**: findings carry only file/location/rule_id/CWE — never the href/URL
+  or matched markup.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (29 files), `pytest` = **63 passed**, coverage
+  **99.26%** (gate 80%); eval harness `ruff`/`mypy --strict` clean (26 files), `pytest` = **102 passed**.
+  Manual validation via `evaluate_corpus`: `reverse_tabnabbing_html` and `reverse_tabnabbing_js` both
+  → TP=2/FP=0/FN=0, **P=1.0, R=1.0** (incl. the mixed-case `Target=_blank` case); safe
+  `rel="noopener"`/`rel="noreferrer"`/`window.open(..., "noopener")` confirmed **not** flagged.
+
 ## Deferred (was In Progress)
 - ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
   (see TASK_BACKLOG Phase 1); resumes when Phase 1 is scheduled. Current active work stream is the
   deterministic analyzer suite on `feature/task-020a-evaluation-foundation`.
 
 ## Pending (next up — MVP critical path)
-- Deterministic analyzers: **secrets (CWE-798) + code-execution (CWE-95) + weak crypto (CWE-327/328)
-  + unsafe deserialization (CWE-502) + TLS verification disabled (CWE-295) complete**. **Next:
-  reverse tabnabbing (CWE-1022)** — with its own curated corpus.
+- Deterministic analyzers: **MVP pattern-analyzer suite COMPLETE** — secrets (CWE-798) +
+  code-execution (CWE-95) + weak crypto (CWE-327/328) + unsafe deserialization (CWE-502) + TLS
+  verification disabled (CWE-295) + reverse tabnabbing (CWE-1022), each with its own curated corpus
+  and all harness-measured at P=1.0/R=1.0 on their corpora.
   Evaluation harness complete (TASK-020a/b/c + TASK-021). Deferred: YAML rulepack engine (TASK-241);
   harness deltas (Phase 4b)/aggregation/grouping; CWE-79/89/78/22/918 to the Phase-2 taint engine;
   Blowfish to a future Security Best-Practices category. OWASP Benchmark, Juliet, and the external
@@ -467,10 +504,24 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (5th deterministic analyzer: TLS verification disabled; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (6th/final deterministic analyzer: reverse tabnabbing — MVP pattern-analyzer suite complete; awaiting human review before merge)
 
 ## Last Completed Task
-Fifth deterministic analyzer — TLS certificate verification disabled (CWE-295): rulepack
+Sixth and final MVP deterministic analyzer — reverse tabnabbing (CWE-1022): rulepack
+`reverse_tabnabbing_rules.py` (HTML `<a target="_blank">` without `rel=noopener`/`noreferrer`,
+case-insensitive; JS/TS `window.open(..., "_blank")` without `noopener`; `<form>`/`<area>` and
+multi-line/data-flow cases out of scope) + thin `ReverseTabnabbingScanner` (a `PatternAnalyzer`
+subclass), under `backend/app/services/deterministic/`; two new curated corpora
+`reverse_tabnabbing_html` + `reverse_tabnabbing_js` (each 2 vuln + 2 safe; HTML `vulnerable_2` uses
+mixed-case `Target=_blank`) + labels + registry entries + eval regression test; backend tests
+(`test_reverse_tabnabbing_scanner.py`, `test_reverse_tabnabbing_harness.py`) (2026-07-18).
+`PatternAnalyzer` and the scanning engine reused unchanged; deterministic only (no
+taint/interproc/data-flow/AI/YAML/browser-context). **This completes the MVP deterministic
+pattern-analyzer suite (6 analyzers).** Backend gates green (ruff/mypy clean; pytest 63 passed;
+coverage 99.26%); eval harness gates green (ruff/mypy --strict clean; 102 passed); manual validation
+`reverse_tabnabbing_html` and `reverse_tabnabbing_js` both P=1.0/R=1.0, safe forms not flagged;
+awaiting human review before merge. Prior: 5th analyzer — TLS certificate verification disabled
+(CWE-295): rulepack
 `tls_verification_rules.py` (Python `verify=False` incl. `session.verify = False`, assignment-only
 not the `==` comparison, + `ssl._create_unverified_context()`; JS/TS `rejectUnauthorized: false`;
 `urllib3.disable_warnings`/`NODE_TLS_REJECT_UNAUTHORIZED` excluded) + thin `TlsVerificationScanner`

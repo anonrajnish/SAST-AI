@@ -1,0 +1,67 @@
+{
+  "corpus_id": "reverse_tabnabbing_html",
+  "language": "html",
+  "version": "1",
+  "labels": [
+    {
+      "label_id": "reverse_tabnabbing-vuln-1",
+      "corpus_id": "reverse_tabnabbing_html",
+      "language": "html",
+      "location": {
+        "file": "vulnerable_1.html",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Reverse tabnabbing: target=_blank without rel=noopener"
+    },
+    {
+      "label_id": "reverse_tabnabbing-vuln-2",
+      "corpus_id": "reverse_tabnabbing_html",
+      "language": "html",
+      "location": {
+        "file": "vulnerable_2.html",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "vulnerable",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Reverse tabnabbing: mixed-case Target=_blank without rel=noopener"
+    },
+    {
+      "label_id": "reverse_tabnabbing-safe-1",
+      "corpus_id": "reverse_tabnabbing_html",
+      "language": "html",
+      "location": {
+        "file": "secure_1.html",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: rel=noopener prevents opener access"
+    },
+    {
+      "label_id": "reverse_tabnabbing-safe-2",
+      "corpus_id": "reverse_tabnabbing_html",
+      "language": "html",
+      "location": {
+        "file": "secure_2.html",
+        "start_line": 5,
+        "end_line": 5
+      },
+      "verdict": "safe",
+      "cwe": "CWE-1022",
+      "rule_id": null,
+      "source": "manual-curation",
+      "notes": "Safe: rel=noreferrer prevents opener access"
+    }
+  ]
+}
