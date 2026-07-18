@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-19 (Reporting Layer Slice 1 — versioned JSON report export; prior: Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
+**Updated:** 2026-07-19 (Reporting Layer Slice 2 — SARIF 2.1.0 export; prior: Reporting Layer Slice 1 — versioned JSON report export; Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -930,13 +930,47 @@ added). **No SARIF, REST export, persistence, or other formats** (later slices).
   rendered a report from a real mixed Python+Web scan (3 findings; `cwe_counts`/`rule_counts`/
   `detector_counts` correct), byte-identical re-render, valid JSON, and no source/secret text present.
 
+## Completed — Reporting Layer Slice 2: SARIF 2.1.0 export (2026-07-19)
+Second reporting serializer: exports `ScanResult` + `ReportMetadata` as a valid **SARIF 2.1.0** log.
+Pure library, **independent of the JSON report** (both consume `ScanResult` directly; SARIF never
+serializes `ScanReport`). No changes to scan pipeline, analyzers, upload, jobs, or REST.
+
+- **SARIF object model** (`reporting/sarif_models.py`): frozen typed subset — `SarifLog` (`$schema`
+  via serialization alias, `version="2.1.0"`, `runs`), `SarifRun`/`SarifTool`/`SarifToolComponent`,
+  `SarifReportingDescriptor`, `SarifResult`, `SarifLocation`/`SarifPhysicalLocation`/
+  `SarifArtifactLocation`/`SarifRegion`, `SarifMessage`, and the property bags.
+- **Builder/renderer** (`reporting/sarif.py`): `build_sarif_report` / `render_sarif_report`
+  (`json.dumps(..., by_alias=True, exclude_none=True)` + trailing newline → byte-deterministic).
+- **Rule catalog — detector-grained (intentional MVP compromise, documented)**: one
+  `reportingDescriptor` per registry analyzer (`id = detector_name`, CWE `tags` from `entry.cwes` +
+  `security`, sorted), in registry order, injectable registry. Because the deterministic registry
+  exposes analyzer metadata (not per-rule metadata), `result.ruleId = finding.detector`; the finer
+  `rule_id` is preserved in `result.properties` + the fingerprint. Future versions may migrate to
+  rule-level descriptors once the registry surfaces rule metadata.
+- **Approved decisions applied**: every result `level: "warning"` (no per-rule severity); CWE via
+  tags only (no taxonomy objects); `result.properties = {rule_id, cwe}`; **invocations omitted**;
+  partial-fingerprint key **`aiSastFindingHash/v1`** = SHA-256 over
+  `detector|rule_id|file|start_line|end_line|cwe`; **generic message** `"Potential security issue
+  detected (CWE-XXX)."` (no rule names); `tool.driver.informationUri` sourced from a new nullable
+  `ReportMetadata.information_uri` (omitted when absent). Region omitted when a finding has no line.
+- **Tests** (`backend/tests/test_reporting_sarif.py`, 19): log skeleton, informationUri present/
+  omitted, registry-mirrored catalog + CWE tags, full catalog with zero results, injected registry,
+  result mapping (ruleId/ruleIndex/level/uri/region/properties), region-omitted, generic message
+  (with/without CWE, hides rule name), unknown/null detector fallbacks, fingerprint key+value and
+  per-component sensitivity, determinism, valid JSON, independence from the JSON envelope,
+  immutability, and a real-scan no-leakage integration.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (60 files), `pytest` = **227 passed** (+19),
+  coverage **99.80%** (reporting package 100%); eval + contracts unaffected. Manual validation:
+  SARIF from a real mixed scan — valid 2.1.0, 6 detector rules, all `warning`, `aiSastFindingHash/v1`
+  fingerprints, no invocations, byte-identical re-render, and no source/secret text present.
+
 ## In Progress
 - Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–3 complete** (validated
   ZIP extraction; upload→scan orchestration; ZIP-bomb / resource-limit hardening). Later: ClamAV,
   extraction cleanup lifecycle, multipart upload + persistence.
-- Reporting Layer (TASK-170/450 export) — **Slice 1 complete** (versioned JSON report library). Next:
-  Slice 2 — SARIF 2.1.0 export (rule catalog from the registry, `level:"warning"`, CWE tags,
-  partial fingerprints); then (separately) a REST `GET /api/v1/scans/{id}/report?format=` endpoint.
+- Reporting Layer (TASK-170/450 export) — **Slices 1–2 complete** (versioned JSON report + SARIF
+  2.1.0, both pure-library). Next (separate): a REST `GET /api/v1/scans/{id}/report?format=json|sarif`
+  endpoint; later, rule-level SARIF descriptors once the registry surfaces rule metadata.
 - Scan Job Lifecycle (TASK-120 skeleton) — **Slices 1–2 complete** (immutable models + transitions;
   thread-safe `ScanJobStore`). Later slices: async execution (Celery), progress, cancellation.
 - REST API (TASK-110/112 surface) — **Slice 1 (foundation) + Scan Endpoint Slices 1–2 complete**
@@ -980,10 +1014,25 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Reporting Layer Slice 1 — versioned JSON report export; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Reporting Layer Slice 2 — SARIF 2.1.0 export; awaiting human review before merge)
 
 ## Last Completed Task
-Reporting Layer **Slice 1** — versioned JSON report export, under the new
+Reporting Layer **Slice 2** — SARIF 2.1.0 export (`reporting/sarif_models.py` + `reporting/sarif.py`;
+`build_sarif_report`/`render_sarif_report`). Pure library, independent of the JSON report (both
+consume `ScanResult` directly). Detector-grained `tool.driver.rules` from the deterministic registry
+(id=detector_name, CWE tags from registry `cwes`) — an **intentional, documented MVP compromise**
+(registry exposes analyzer, not rule, metadata), so `result.ruleId=finding.detector` with `rule_id`
+kept in `properties` + fingerprint; future migration to rule-level descriptors noted. Applied approved
+decisions: `level:"warning"` for all findings, CWE tags only (no taxonomies), `properties={rule_id,cwe}`,
+**invocations omitted**, fingerprint key **`aiSastFindingHash/v1`** = SHA-256 over
+detector|rule_id|file|start_line|end_line|cwe, generic message `"Potential security issue detected
+(CWE-XXX)."`, and nullable `tool.driver.informationUri` (new `ReportMetadata.information_uri`, omitted
+when absent); region omitted when no line. Byte-deterministic (`by_alias`+`exclude_none`); no source/
+secret leakage. No scan/analyzer/upload/jobs/REST changes; no persistence/GitNexus/AI. Backend gates
+green (ruff/mypy clean, 60 files; pytest 227 passed; coverage 99.80%, reporting package 100%);
+eval+contracts unaffected; manual validation: valid SARIF from a real mixed scan (6 rules, all warning,
+`aiSastFindingHash/v1`, no invocations, byte-identical re-render, no leakage); awaiting human review
+before merge. Prior: Reporting Layer **Slice 1** — versioned JSON report export, under the new
 `backend/app/services/reporting/` package. A pure, deterministic library projecting a `ScanResult`
 + caller-supplied `ReportMetadata` into a dedicated versioned envelope `ScanReport`
 (`report_schema_version` + `tool` + `scan` + `summary` + flattened `findings`). Summary carries

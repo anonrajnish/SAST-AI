@@ -24,3 +24,5 @@ class ReportMetadata(BaseModel):
     created_at: datetime | None = None
     completed_at: datetime | None = None
     target_label: str | None = None
+    # Optional project/tool URL for SARIF tool.driver.informationUri (None until one exists).
+    information_uri: str | None = None
