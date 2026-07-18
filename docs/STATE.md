@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-19 (Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; prior: REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
+**Updated:** 2026-07-19 (Reporting Layer Slice 1 — versioned JSON report export; prior: Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -895,10 +895,48 @@ harness are **unchanged**. No ClamAV, persistence, cleanup scheduler, workers, G
   validation: valid extract OK; oversized/file-count/extracted-size/ratio each raise their typed
   error (bomb caught at ~1014:1); rejected archives leave **no** temp dir; config defaults active.
 
+## Completed — Reporting Layer Slice 1: versioned JSON report export (2026-07-19)
+First slice of the Reporting Layer (TASK-170/450 export surface). A **pure, deterministic library**
+that projects a `ScanResult` (+ caller-supplied `ReportMetadata`) into a dedicated, **versioned JSON
+report envelope**. Read-only; carries only finding metadata (no source snippets). Design approved with
+adjustments (single library; `ScanResult`+`ReportMetadata` input; dedicated envelope; failed-job
+reports out of scope; the summary section added; `REPORT_SCHEMA_VERSION` name; `detector_counts`
+added). **No SARIF, REST export, persistence, or other formats** (later slices).
+
+- **Package** (`backend/app/services/reporting/`): `metadata.py` (`ReportMetadata` — tool
+  name/version + optional scan id/timestamps/target label, built by the caller); `models.py`
+  (`REPORT_SCHEMA_VERSION="1.0"`; frozen `ReportTool`/`ReportScanInfo`/`ReportAnalyzerRun`/
+  `ReportSummary`/`ReportFinding`/`ScanReport`); `reporter.py` (`build_json_report` → envelope,
+  `render_json_report` → canonical JSON string).
+- **Envelope**: `report_schema_version`, `tool{name,version}`, `scan{id,status,created_at,
+  completed_at,target_label}`, `summary{...}`, `findings[]` (flattened to file/start_line/end_line/
+  rule_id/cwe/detector — decoupled from the internal `Finding`/`SourceLocation` nesting).
+- **Summary**: `total_findings`, `files_scanned`, `analyzers[{detector,finding_count}]` (registry
+  order), sorted `detected/resolved_language_groups`, and three sorted-key count maps —
+  `cwe_counts`, `rule_counts`, **`detector_counts`** — each counting findings by that field and
+  omitting nulls (null-valued findings still appear in `findings[]`).
+- **Deterministic & no-leakage**: findings consumed in `ScanResult`'s order; group lists sorted;
+  count-map keys inserted sorted; canonical `json.dumps(indent=2, ensure_ascii=False)` + trailing
+  newline → byte-identical re-renders. Only metadata is emitted (no snippets/matched text). Pure
+  library — imports only `contracts` + `app.services.scan` (no jobs/upload/app.meta/config coupling).
+- **`NO_SUPPORTED_LANGUAGES`** → valid empty report (zero totals, empty analyzers/count maps).
+  Failed jobs (no `ScanResult`) are out of scope.
+- **Tests** (`backend/tests/test_reporting_json.py`, 14): structure/metadata, ISO timestamps, the
+  three count maps, sorted groups + sorted count keys, null-metadata excluded-from-counts, findings
+  order preserved, finding key-set (no-leakage), valid-JSON round-trip, deterministic render,
+  `NO_SUPPORTED_LANGUAGES`, immutability, and a real-scan integration.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (58 files), `pytest` = **208 passed** (+14),
+  coverage **99.78%** (reporting package 100%); eval + contracts gates unaffected. Manual validation:
+  rendered a report from a real mixed Python+Web scan (3 findings; `cwe_counts`/`rule_counts`/
+  `detector_counts` correct), byte-identical re-render, valid JSON, and no source/secret text present.
+
 ## In Progress
 - Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–3 complete** (validated
   ZIP extraction; upload→scan orchestration; ZIP-bomb / resource-limit hardening). Later: ClamAV,
   extraction cleanup lifecycle, multipart upload + persistence.
+- Reporting Layer (TASK-170/450 export) — **Slice 1 complete** (versioned JSON report library). Next:
+  Slice 2 — SARIF 2.1.0 export (rule catalog from the registry, `level:"warning"`, CWE tags,
+  partial fingerprints); then (separately) a REST `GET /api/v1/scans/{id}/report?format=` endpoint.
 - Scan Job Lifecycle (TASK-120 skeleton) — **Slices 1–2 complete** (immutable models + transitions;
   thread-safe `ScanJobStore`). Later slices: async execution (Celery), progress, cancellation.
 - REST API (TASK-110/112 surface) — **Slice 1 (foundation) + Scan Endpoint Slices 1–2 complete**
@@ -942,9 +980,22 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Reporting Layer Slice 1 — versioned JSON report export; awaiting human review before merge)
 
 ## Last Completed Task
+Reporting Layer **Slice 1** — versioned JSON report export, under the new
+`backend/app/services/reporting/` package. A pure, deterministic library projecting a `ScanResult`
++ caller-supplied `ReportMetadata` into a dedicated versioned envelope `ScanReport`
+(`report_schema_version` + `tool` + `scan` + `summary` + flattened `findings`). Summary carries
+`total_findings`, `files_scanned`, `analyzers`, sorted `detected/resolved_language_groups`, and
+sorted-key `cwe_counts`/`rule_counts`/`detector_counts` (null-valued fields excluded from counts but
+kept in findings). `build_json_report` / `render_json_report` (canonical `json.dumps`, trailing
+newline) are byte-deterministic and leak no source/matched text (metadata only). Imports only
+`contracts` + `app.services.scan` (pure library — no jobs/upload/meta/config coupling); `NO_SUPPORTED_
+LANGUAGES` → valid empty report; failed jobs out of scope. No SARIF/REST/persistence/other formats.
+Backend gates green (ruff/mypy clean, 58 files; pytest 208 passed; coverage 99.78%, reporting package
+100%); eval+contracts unaffected; manual validation: real mixed scan → correct counts, byte-identical
+re-render, valid JSON, no leakage; awaiting human review before merge. Prior:
 Repository Upload **Slice 3** — ZIP-bomb / resource-limit hardening (TASK-131). Added configurable
 `ExtractionLimits` (`upload/limits.py`; `max_archive_bytes` / `max_total_uncompressed_bytes` /
 `max_file_count` / `max_compression_ratio`) with defaults in `app.config.Settings` (env-overridable);
