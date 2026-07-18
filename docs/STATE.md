@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (Scan Pipeline Slice 3 — execution + aggregation / `scan_repository`; prior: Slice 2 resolution + registry-driven selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3); deterministic framework stabilization pass)
+**Updated:** 2026-07-18 (Scan Pipeline Slice 4 — triage-ready ordering; **MVP Scan Pipeline complete**; prior: Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -509,7 +509,8 @@ files scanned, findings count). **No** GitNexus / taint / REST / SARIF / resourc
 in this milestone. Approved adjustments: analyzer metadata (language groups, CWE coverage) lives in
 the **registry** (not on `PatternAnalyzer`); manual selection supports Python, Web, or both.
 Slices: **0 shared contract (M3) ✅** → **1 language foundation ✅** → **2 resolution + registry
-selection ✅** → **3 execution + aggregation ✅** → 4 triage-ready shaping.
+selection ✅** → **3 execution + aggregation ✅** → **4 triage-ready shaping ✅**. **MVP Scan
+Pipeline COMPLETE** (all five slices shipped; deterministic, registry-driven, triage-ready).
 
 ## Completed — Scan Pipeline Slice 0: shared `contracts` package (M3, 2026-07-18)
 Relocated the shared analysis contract out of the eval package so the backend no longer depends on
@@ -601,6 +602,30 @@ analyzer behavior unchanged.
   Python → 4 files, 2 findings, 5 analyzers, all under `python/` (JS ignored); MANUAL Web → JS findings
   only; `docs/` AUTO → `NO_SUPPORTED_LANGUAGES`; missing root → `RepositoryError`.
 
+## Completed — Scan Pipeline Slice 4: triage-ready ordering (2026-07-18) — MVP Scan Pipeline complete
+Deterministic ordering of `ScanResult.findings` so the result is reproducible and diff-friendly for a
+future triage stage. **Ordering only — no `finding_id`, no dedup, no AI/GitNexus/SARIF; the execution
+pipeline (`pipeline.py`) and analyzers are unchanged** (ordering is applied by the result model, not
+the pipeline).
+
+- **Ordering** (`scan/ordering.py`): `finding_sort_key` = (file, start_line, end_line, detector,
+  rule_id, cwe) — a total order over finding metadata; `order_findings(findings)` returns a stable
+  sorted list (no dedup).
+- **Applied in the result model** (`scan/results.py`): a `@field_validator("findings")` normalizes
+  findings into deterministic order at `ScanResult` construction, so every result (pipeline-built or
+  direct) is ordered without touching the pipeline. Added a `@field_serializer(..., when_used="json")`
+  that emits the language-group sets as **sorted lists**, so the serialized result is stable across
+  runs (frozenset iteration order can otherwise vary).
+- **DoD gates green**: backend `ruff`/`mypy app` clean (39 files), `pytest` = **99 passed**, coverage
+  **99.57%**; eval + contracts gates unaffected. Manual validation: findings globally path-ordered
+  (not analyzer order); two runs over the same repo produce **byte-identical** serialized JSON; group
+  sets serialize sorted (`["python","web"]`); result fully JSON-serializable.
+
+**MVP Scan Pipeline (Slices 0–4) is complete**: `scan_repository(repo_root, config)` deterministically
+detects languages, resolves AUTO/MANUAL targets, selects analyzers from the registry, executes them,
+aggregates language-scoped findings, and returns a stable, triage-ready `ScanResult`. Not yet wired to
+GitNexus, taint, REST, SARIF, persistence, or AI triage (future tasks).
+
 ## Deferred (was In Progress)
 - ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
   (see TASK_BACKLOG Phase 1); resumes when Phase 1 is scheduled. Current active work stream is the
@@ -638,10 +663,18 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Scan Pipeline Slice 3 — execution + aggregation / scan_repository; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Scan Pipeline Slice 4 — triage-ready ordering; MVP Scan Pipeline complete; awaiting human review before merge)
 
 ## Last Completed Task
-Scan Pipeline **Slice 3** — deterministic execution + aggregation. `scan_repository(repo_root, config)`
+Scan Pipeline **Slice 4** — triage-ready ordering (**completes the MVP Scan Pipeline, Slices 0–4**).
+`scan/ordering.py` (`finding_sort_key` over file/line/detector/rule_id/cwe + `order_findings`);
+`ScanResult` normalizes findings into deterministic order via a `field_validator` (pipeline and
+analyzers unchanged — ordering owned by the result model) and serializes the language-group sets as
+sorted lists so the JSON result is stable across runs. Ordering only — no finding_id/dedup/AI/GitNexus/
+SARIF. Backend gates green (ruff/mypy clean, 39 files; pytest 99 passed; coverage 99.57%);
+eval+contracts unaffected; manual validation: findings globally path-ordered, byte-identical serialized
+JSON across runs, groups serialize sorted, fully JSON-serializable; awaiting human review before merge.
+Prior: Slice 3 — deterministic execution + aggregation (`scan_repository`, `ScanResult`). `scan_repository(repo_root, config)`
 runs detect → resolve → select → execute (registry order) → aggregate → `ScanResult` (`ScanStatus`,
 `AnalyzerRun`, detected/resolved groups, files_scanned, total_findings, findings). Findings scoped to
 resolved groups so MANUAL ignores other languages (analyzers unmodified); AUTO with nothing supported →

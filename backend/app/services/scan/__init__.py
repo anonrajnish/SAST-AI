@@ -13,6 +13,7 @@ from contracts import LanguageGroup
 from .detection import detect_language_groups, group_for_language
 from .errors import RepositoryError, ScanError, ScanExecutionError
 from .models import ScanConfig, TargetMode
+from .ordering import order_findings
 from .pipeline import scan_repository
 from .resolution import resolve_target_groups
 from .results import AnalyzerRun, ScanResult, ScanStatus
@@ -30,6 +31,7 @@ __all__ = [
     "TargetMode",
     "detect_language_groups",
     "group_for_language",
+    "order_findings",
     "resolve_target_groups",
     "scan_repository",
     "select_analyzers",

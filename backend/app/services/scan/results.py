@@ -10,7 +10,9 @@ from __future__ import annotations
 from enum import StrEnum
 
 from contracts import Finding, LanguageGroup
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator
+
+from .ordering import order_findings
 
 
 class ScanStatus(StrEnum):
@@ -33,8 +35,9 @@ class ScanResult(BaseModel):
     """The structured outcome of scanning one repository.
 
     On ``NO_SUPPORTED_LANGUAGES`` (AUTO detected nothing supported) the analyzer runs and
-    findings are empty. ``findings`` are aggregated in registry order and scoped to the
-    resolved language groups; deduplication is deferred to a later slice.
+    findings are empty. ``findings`` are normalized into a deterministic, reproducible order
+    (see :func:`~app.services.scan.ordering.order_findings`) so the result is stable across
+    runs and diff-friendly for triage; deduplication is not performed.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -46,3 +49,18 @@ class ScanResult(BaseModel):
     files_scanned: int
     total_findings: int
     findings: list[Finding]
+
+    @field_validator("findings")
+    @classmethod
+    def _order_findings(cls, findings: list[Finding]) -> list[Finding]:
+        """Normalize findings into deterministic order at construction time."""
+
+        return order_findings(findings)
+
+    @field_serializer(
+        "detected_language_groups", "resolved_language_groups", when_used="json"
+    )
+    def _serialize_groups(self, groups: frozenset[LanguageGroup]) -> list[str]:
+        """Serialize group sets as a sorted list so the JSON result is stable across runs."""
+
+        return sorted(group.value for group in groups)
