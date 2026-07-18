@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (Scan Pipeline Slice 4 — triage-ready ordering; **MVP Scan Pipeline complete**; prior: Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
+**Updated:** 2026-07-18 (Repository Upload Slice 2 — upload→scan orchestration; prior: Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -626,10 +626,81 @@ detects languages, resolves AUTO/MANUAL targets, selects analyzers from the regi
 aggregates language-scoped findings, and returns a stable, triage-ready `ScanResult`. Not yet wired to
 GitNexus, taint, REST, SARIF, persistence, or AI triage (future tasks).
 
-## Deferred (was In Progress)
-- ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
-  (see TASK_BACKLOG Phase 1); resumes when Phase 1 is scheduled. Current active work stream is the
-  deterministic analyzer suite on `feature/task-020a-evaluation-foundation`.
+## Completed — Repository Upload & Safe Extraction Slice 1: validated ZIP extraction (2026-07-18)
+First slice of the Repository Upload & Safe Extraction subsystem (TASK-130 ZIP-upload module +
+the pre-extraction security controls of TASK-131), under the new `backend/app/services/upload/`
+package. Accepts a ZIP archive path, **fully validates it before writing anything**, safely
+extracts it into a fresh temporary working directory, and returns the extracted repository root.
+Deterministic; the archive is read read-only and no extracted file is ever imported or executed.
+**Out of scope this slice** (later): ZIP-bomb / resource limits, ClamAV, cleanup scheduling,
+language detection, scan-pipeline integration, REST/upload API, persistence/DB, Celery, Docker.
+
+- **Entry point** (`upload/extractor.py`): `extract_zip(archive_path, *, workspace_dir=None) ->
+  ExtractedRepository`. Validation → extraction pipeline: require a readable `.zip` container →
+  open read-only → validate every entry → CRC integrity check → only then create a temp dir
+  (`tempfile.mkdtemp`, `sast-upload-` prefix) and write. Manual entry-by-entry write (never
+  `extractall`): only regular files and directory entries, no mode/exec bits carried over.
+- **Security controls**: **Zip Slip / traversal** and **absolute paths** rejected (`..` component,
+  absolute, Windows separator/drive, empty/NUL name → `PathTraversalError`); **symlink** entries
+  (`SymlinkEntryError`) and **non-regular special files** — FIFO/device/socket (`SpecialFileError`)
+  rejected via the entry's unix mode; **nested archives** (`.zip/.tar/.gz/.7z/.rar/…`, incl.
+  compound `.tar.gz`) rejected (`NestedArchiveError`); **encrypted/password-protected** ZIPs
+  rejected via GP-flag bit 0 (`EncryptedArchiveError`); **non-ZIP** types (`UnsupportedArchiveError`)
+  and **invalid/corrupted/missing** ZIPs (`CorruptedArchiveError`, incl. bad-CRC via `testzip`).
+  Because validation precedes any write, a rejected archive **leaves no partial extraction**; an
+  unexpected mid-write failure removes the temp dir (`shutil.rmtree`).
+- **Typed models & errors** (`upload/models.py`, `upload/errors.py`): frozen `ExtractedRepository`
+  (`root`, `file_count`, `directory_count`; JSON-serializable); `UploadError` base with the typed
+  subclasses above (`UnsafeArchiveEntryError` carries the offending `entry_name`/`reason`).
+- **Tests** (`backend/tests/test_upload_extraction.py`, 16 tests): valid ZIP (content + counts +
+  root under workspace + files not executable), empty ZIP, Zip Slip, absolute path, Windows
+  separator, empty entry name, no-partial-extraction on rejection, symlink, special file, nested
+  `.zip`, nested `.tar.gz`, directory named like an archive (allowed), encrypted (byte-patched GP
+  flag), garbage/corrupted, bad-CRC, non-`.zip` extension, missing file, and cleanup-on-failure.
+- **Backward compatible**: no change to `scan`, `deterministic`, `contracts`, or `eval`; the
+  scan pipeline is unaffected.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (43 files), `pytest` = **118 passed** (+15),
+  coverage **99.65%** (upload package 100%); eval + contracts gates unaffected. Manual validation:
+  every control exercised end-to-end (valid/empty extract correctly; all 11 rejection classes raise
+  their typed error; rejected archives create no temp dir).
+
+## Completed — Repository Upload Slice 2: upload→scan orchestration (2026-07-18)
+Second slice of the Repository Upload & Safe Extraction subsystem (TASK-130/131). Adds the
+**minimal orchestration layer** that connects the two completed subsystems into a one-call
+"scan a ZIP" flow — `ZIP -> extract_zip() -> scan_repository() -> ArchiveScanResult` — reusing
+both unchanged. No extraction or scan logic is duplicated; the orchestrator only coordinates.
+**Out of scope this slice** (later/other work): REST/upload API, DB/persistence, cleanup
+scheduling, GitNexus, AI, SARIF export, ZIP-bomb protection.
+
+- **Public API** (`upload/orchestration.py`): `scan_archive(archive_path, config, *,
+  workspace_dir=None) -> ArchiveScanResult`. Calls the existing `extract_zip` then the existing
+  `scan_repository(extraction.root, config)` and returns both together. `workspace_dir` is a
+  dependency-injection seam forwarded to extraction (keeps tests hermetic); the documented
+  required signature is `scan_archive(archive_path, config)`.
+- **Combined result** (`ArchiveScanResult`, frozen `extra="forbid"`): composes the two existing
+  immutable models unchanged — `extraction: ExtractedRepository` + `scan: ScanResult`.
+  JSON-serializable. No new fields, no re-shaping of either result.
+- **Error handling — no wrapper exceptions**: `UploadError` subclasses (extraction) and
+  `RepositoryError` / `ScanExecutionError` (scanning) propagate **unchanged** (the orchestrator
+  catches nothing). On an extraction failure the scan stage is not run.
+- **Reuse**: no changes to `upload/extractor.py`, `scan/`, `deterministic/`, `contracts`, or
+  `eval`; `upload/__init__` now also exports `scan_archive` + `ArchiveScanResult`.
+- **Tests** (`backend/tests/test_upload_scan_orchestration.py`, 8 tests): real end-to-end extract
+  +scan (Python weak-crypto finding surfaced), empty ZIP → `NO_SUPPORTED_LANGUAGES`, MANUAL
+  Python scoping through the orchestrator (JS excluded; detected `{python,web}` vs resolved
+  `{python}`), frozen + `extra="forbid"` + JSON-serializable result, and four propagation tests
+  (real Zip Slip `PathTraversalError` with the scan stage proven un-run; `UnsupportedArchiveError`,
+  `RepositoryError`, `ScanExecutionError` propagate the exact instance unchanged).
+- **DoD gates green**: backend `ruff`/`mypy app` clean (44 files), `pytest` = **126 passed** (+8),
+  coverage **99.66%** (upload package 100%); eval + contracts gates unaffected. Manual validation:
+  ZIP→extract→scan returns one `ArchiveScanResult` (findings from `a.py`, JSON-serializable);
+  MANUAL scoping honored; empty ZIP → `NO_SUPPORTED_LANGUAGES`; Zip Slip `PathTraversalError`
+  propagates unchanged.
+
+## In Progress
+- Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–2 complete** (validated
+  ZIP extraction + upload→scan orchestration, above). Later slices: ZIP-bomb / resource limits,
+  ClamAV, extraction cleanup lifecycle, and the REST/upload API + persistence.
 
 ## Pending (next up — MVP critical path)
 - Deterministic analyzers: **MVP pattern-analyzer suite COMPLETE** — secrets (CWE-798) +
@@ -663,10 +734,31 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Scan Pipeline Slice 4 — triage-ready ordering; MVP Scan Pipeline complete; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Repository Upload Slice 2 — upload→scan orchestration; awaiting human review before merge)
 
 ## Last Completed Task
-Scan Pipeline **Slice 4** — triage-ready ordering (**completes the MVP Scan Pipeline, Slices 0–4**).
+Repository Upload **Slice 2** — upload→scan orchestration. Added the minimal orchestration layer
+`scan_archive(archive_path, config, *, workspace_dir=None) -> ArchiveScanResult` (`upload/
+orchestration.py`) that coordinates the two completed subsystems unchanged — `ZIP -> extract_zip()
+-> scan_repository()` — and returns both results in one frozen `ArchiveScanResult` (`extraction:
+ExtractedRepository` + `scan: ScanResult`; JSON-serializable). No extraction/scan logic duplicated;
+`UploadError` and `RepositoryError`/`ScanExecutionError` propagate unchanged (no wrapper
+exceptions; scan stage not run on an extraction failure). No changes to extractor/scan/
+deterministic/contracts/eval. Backend gates green (ruff/mypy clean, 44 files; pytest 126 passed;
+coverage 99.66%, upload package 100%); eval+contracts unaffected; manual validation exercised the
+full flow (extract+scan, manual scoping, empty→NO_SUPPORTED_LANGUAGES, Zip-Slip propagation);
+awaiting human review before merge. Prior: Repository Upload **Slice 1** — validated ZIP extraction, under the new
+`backend/app/services/upload/` package. `extract_zip(archive_path, *, workspace_dir=None) ->
+ExtractedRepository` fully validates a ZIP **before** writing (reject Zip Slip/traversal,
+absolute paths, symlink/special-file entries, nested archives, encrypted and corrupted/non-ZIP
+archives — each a typed `UploadError` subclass), then safely extracts regular files + directories
+into a fresh temp dir (no `extractall`, no exec bits, nothing imported/executed) and returns the
+repo root; rejected archives leave no partial extraction. ZIP-bomb/resource limits, ClamAV,
+cleanup scheduling, and scan-pipeline integration are deferred to later slices. Backward
+compatible (no change to `scan`/`deterministic`/`contracts`/`eval`). Backend gates green (ruff/mypy
+clean, 43 files; pytest 118 passed; coverage 99.65%, upload package 100%); eval+contracts
+unaffected; manual validation exercised every control end-to-end; awaiting human review before
+merge. Prior: Scan Pipeline **Slice 4** — triage-ready ordering (**completes the MVP Scan Pipeline, Slices 0–4**).
 `scan/ordering.py` (`finding_sort_key` over file/line/detector/rule_id/cwe + `order_findings`);
 `ScanResult` normalizes findings into deterministic order via a `field_validator` (pipeline and
 analyzers unchanged — ordering owned by the result model) and serializes the language-group sets as
