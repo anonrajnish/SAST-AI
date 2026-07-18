@@ -6,6 +6,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from app.config import Settings
 from app.services.scan import (
     LanguageGroup,
     RepositoryError,
@@ -15,6 +16,7 @@ from app.services.scan import (
 )
 from app.services.upload import (
     ArchiveScanResult,
+    FileCountLimitError,
     PathTraversalError,
     UnsupportedArchiveError,
     scan_archive,
@@ -162,3 +164,18 @@ def test_scan_execution_error_propagates_unchanged(
         scan_archive(archive, ScanConfig.auto(), workspace_dir=tmp_path)
     assert exc_info.value is sentinel
     assert exc_info.value.detector_name == "weak-crypto-scanner"
+
+
+def test_resource_limit_error_propagates_through_scan_archive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # scan_archive calls extract_zip without explicit limits, so the extractor sources them from
+    # settings; a bomb/over-limit archive surfaces its typed error through the orchestration.
+    monkeypatch.setattr(
+        "app.services.upload.extractor.get_settings",
+        lambda: Settings(extraction_max_file_count=1),
+    )
+    archive = _make_zip(tmp_path / "repo.zip", {"a.py": _MD5_PY, "b.py": "x = 1\n"})
+
+    with pytest.raises(FileCountLimitError):
+        scan_archive(archive, ScanConfig.auto(), workspace_dir=tmp_path)

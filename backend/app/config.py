@@ -36,6 +36,21 @@ class Settings(BaseSettings):
     )
     redis_url: str = Field(default="redis://localhost:6379/0")
 
+    # Upload extraction resource limits (ZIP-bomb / resource-exhaustion hardening).
+    # Override via env (e.g. EXTRACTION_MAX_ARCHIVE_BYTES). Consumed by the upload extractor.
+    extraction_max_archive_bytes: int = Field(
+        default=100 * 1024 * 1024, gt=0, description="Max on-disk .zip size (bytes)."
+    )
+    extraction_max_total_uncompressed_bytes: int = Field(
+        default=1024 * 1024 * 1024, gt=0, description="Max total extracted size (bytes)."
+    )
+    extraction_max_file_count: int = Field(
+        default=10_000, gt=0, description="Max number of archive member entries."
+    )
+    extraction_max_compression_ratio: float = Field(
+        default=100.0, gt=0, description="Max total uncompressed / compressed ratio."
+    )
+
     @property
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"

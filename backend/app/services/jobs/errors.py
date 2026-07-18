@@ -1,4 +1,4 @@
-"""Typed errors for the scan-job lifecycle (Slice 1)."""
+"""Typed errors for the scan-job lifecycle and store (Slice 1-2)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,23 @@ if TYPE_CHECKING:
 
 
 class ScanJobError(Exception):
-    """Base class for scan-job lifecycle errors."""
+    """Base class for scan-job lifecycle and store errors."""
+
+
+class DuplicateScanJobError(ScanJobError):
+    """A job with the same ``job_id`` already exists in the store."""
+
+    def __init__(self, job_id: str) -> None:
+        super().__init__(f"scan job already exists: {job_id!r}")
+        self.job_id = job_id
+
+
+class ScanJobNotFoundError(ScanJobError):
+    """No job with the requested ``job_id`` exists in the store."""
+
+    def __init__(self, job_id: str) -> None:
+        super().__init__(f"scan job not found: {job_id!r}")
+        self.job_id = job_id
 
 
 class InvalidScanJobTransitionError(ScanJobError):

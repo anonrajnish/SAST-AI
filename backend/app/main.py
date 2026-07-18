@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from app.api.exception_handlers import register_exception_handlers
 from app.api.router import api_router
 from app.config import get_settings
 from app.core.logging import configure_logging, get_logger
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
         debug=settings.debug,
     )
     app.include_router(api_router, prefix="/api/v1")
+    register_exception_handlers(app)
 
     get_logger(__name__).info("application_configured", app_env=settings.app_env)
     return app

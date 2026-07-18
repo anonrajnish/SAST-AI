@@ -37,13 +37,6 @@ def test_health_endpoints_still_available(client: TestClient) -> None:
     assert client.get("/api/v1/health/live").status_code == 200
 
 
-def test_no_scan_endpoints_are_exposed(client: TestClient) -> None:
-    paths = client.get("/openapi.json").json()["paths"]
-
-    assert "/api/v1/version" in paths
-    assert not any("scan" in path or "upload" in path for path in paths)
-
-
 def test_only_expected_route_prefixes_are_mounted(client: TestClient) -> None:
     paths = set(client.get("/openapi.json").json()["paths"])
 
@@ -52,4 +45,6 @@ def test_only_expected_route_prefixes_are_mounted(client: TestClient) -> None:
         "/api/v1/health/live",
         "/api/v1/health/ready",
         "/api/v1/version",
+        "/api/v1/scans",
+        "/api/v1/scans/{job_id}",
     }

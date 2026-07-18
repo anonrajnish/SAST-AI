@@ -1,14 +1,16 @@
-"""Repository upload & safe extraction (Slice 1).
+"""Repository upload & safe extraction (Slice 1, 3).
 
 Validates an uploaded ZIP archive and extracts it into a fresh temporary working directory,
 returning the extracted repository root. Defends against Zip Slip / path traversal, absolute
-paths, symlink and special-file entries, nested archives, and encrypted or corrupted
-archives. The archive is opened read-only; only regular files and directories are written,
-and nothing is ever imported or executed.
+paths, symlink and special-file entries, nested archives, encrypted or corrupted archives, and
+(Slice 3) ZIP-bomb / resource-exhaustion attacks via configurable limits. The archive is opened
+read-only; only regular files and directories are written, and nothing is imported or executed.
 
-Scope (Slice 1): ZIP only. The archive is fully validated *before* anything is written, so a
-rejected upload never leaves a partial extraction. Resource / ZIP-bomb limits, cleanup
-scheduling, and scan-pipeline integration are deliberately out of scope (later slices).
+The archive is fully validated *before* anything is written, so a rejected upload never leaves a
+partial extraction; the extracted-size limit is additionally enforced *during* streaming so a
+lying central-directory header cannot bypass it. Resource limits are configurable through the
+application settings (see :class:`~app.services.upload.limits.ExtractionLimits`). Cleanup
+scheduling and scan-pipeline integration are out of scope here.
 """
 
 from __future__ import annotations
@@ -18,20 +20,29 @@ import stat
 import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
+from typing import IO
+
+from app.config import get_settings
 
 from .errors import (
+    ArchiveTooLargeError,
+    CompressionRatioLimitError,
     CorruptedArchiveError,
     EncryptedArchiveError,
+    ExtractedSizeLimitError,
+    FileCountLimitError,
     NestedArchiveError,
     PathTraversalError,
     SpecialFileError,
     SymlinkEntryError,
     UnsupportedArchiveError,
 )
+from .limits import ExtractionLimits
 from .models import ExtractedRepository
 
 _ZIP_SUFFIX = ".zip"
 _WORKSPACE_PREFIX = "sast-upload-"
+_COPY_CHUNK_BYTES = 64 * 1024
 
 # ZIP general-purpose bit 0 set => the entry's data is encrypted / password-protected.
 _ENCRYPTED_FLAG = 0x1
@@ -48,26 +59,78 @@ _NESTED_ARCHIVE_SUFFIXES: frozenset[str] = frozenset(
 
 
 def extract_zip(
-    archive_path: Path, *, workspace_dir: Path | None = None
+    archive_path: Path,
+    *,
+    workspace_dir: Path | None = None,
+    limits: ExtractionLimits | None = None,
 ) -> ExtractedRepository:
     """Validate and safely extract a ZIP ``archive_path``; return the extracted repo root.
 
     The archive is opened read-only and fully validated *before* anything is written. On any
-    security or integrity violation a typed :class:`~app.services.upload.errors.UploadError`
-    subclass is raised and no partial extraction is left behind. A fresh temporary directory
-    is created under ``workspace_dir`` (the system temp dir when ``None``).
+    security, integrity, or resource-limit violation a typed
+    :class:`~app.services.upload.errors.UploadError` subclass is raised and no partial extraction
+    is left behind. A fresh temporary directory is created under ``workspace_dir`` (the system
+    temp dir when ``None``). ``limits`` defaults to the application-configured
+    :class:`~app.services.upload.limits.ExtractionLimits` when not supplied.
     """
 
+    limits = limits if limits is not None else _default_limits()
+
     _require_zip_container(archive_path)
+    _reject_oversized_archive(archive_path, limits)
 
     try:
         with zipfile.ZipFile(archive_path) as zf:
             infos = zf.infolist()
             _validate_entries(infos)
+            _enforce_resource_limits(infos, limits)
             _reject_corrupted(zf)
-            return _extract(zf, infos, workspace_dir)
+            return _extract(zf, infos, workspace_dir, limits)
     except zipfile.BadZipFile as exc:
         raise CorruptedArchiveError(f"not a valid ZIP archive: {archive_path}") from exc
+
+
+def _default_limits() -> ExtractionLimits:
+    """Build extraction limits from the application settings (the configuration source)."""
+
+    settings = get_settings()
+    return ExtractionLimits(
+        max_archive_bytes=settings.extraction_max_archive_bytes,
+        max_total_uncompressed_bytes=settings.extraction_max_total_uncompressed_bytes,
+        max_file_count=settings.extraction_max_file_count,
+        max_compression_ratio=settings.extraction_max_compression_ratio,
+    )
+
+
+def _reject_oversized_archive(archive_path: Path, limits: ExtractionLimits) -> None:
+    """Reject an archive whose on-disk size exceeds the limit (cheap, before opening)."""
+
+    size = archive_path.stat().st_size
+    if size > limits.max_archive_bytes:
+        raise ArchiveTooLargeError(size, limits.max_archive_bytes)
+
+
+def _enforce_resource_limits(
+    infos: list[zipfile.ZipInfo], limits: ExtractionLimits
+) -> None:
+    """Reject a resource-exhausting archive from its declared metadata, before extraction.
+
+    Checks member count, total declared uncompressed size, and the overall compression ratio.
+    The uncompressed-size bound is *also* enforced during streaming (see :func:`_copy_with_limit`)
+    so a lying header cannot bypass it.
+    """
+
+    if len(infos) > limits.max_file_count:
+        raise FileCountLimitError(len(infos), limits.max_file_count)
+
+    total_uncompressed = sum(info.file_size for info in infos)
+    if total_uncompressed > limits.max_total_uncompressed_bytes:
+        raise ExtractedSizeLimitError(total_uncompressed, limits.max_total_uncompressed_bytes)
+
+    total_compressed = sum(info.compress_size for info in infos)
+    ratio = total_uncompressed / max(total_compressed, 1)
+    if ratio > limits.max_compression_ratio:
+        raise CompressionRatioLimitError(ratio, limits.max_compression_ratio)
 
 
 def _require_zip_container(archive_path: Path) -> None:
@@ -144,13 +207,22 @@ def _reject_corrupted(zf: zipfile.ZipFile) -> None:
 
 
 def _extract(
-    zf: zipfile.ZipFile, infos: list[zipfile.ZipInfo], workspace_dir: Path | None
+    zf: zipfile.ZipFile,
+    infos: list[zipfile.ZipInfo],
+    workspace_dir: Path | None,
+    limits: ExtractionLimits,
 ) -> ExtractedRepository:
-    """Write the already-validated entries into a fresh temp dir; clean up on any failure."""
+    """Write the already-validated entries into a fresh temp dir; clean up on any failure.
+
+    The running total of bytes actually written is capped at
+    ``limits.max_total_uncompressed_bytes`` so a header that under-reports its uncompressed size
+    cannot bypass the extracted-size limit.
+    """
 
     dest = Path(tempfile.mkdtemp(prefix=_WORKSPACE_PREFIX, dir=workspace_dir))
     file_count = 0
     directory_count = 0
+    written_total = 0
     try:
         for info in infos:
             target = dest / _safe_relative_name(info.filename)
@@ -160,7 +232,9 @@ def _extract(
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with zf.open(info) as src, target.open("wb") as dst:
-                    shutil.copyfileobj(src, dst)
+                    written_total = _copy_with_limit(
+                        src, dst, written_total, limits.max_total_uncompressed_bytes
+                    )
                 file_count += 1
     except BaseException:
         shutil.rmtree(dest, ignore_errors=True)
@@ -169,3 +243,20 @@ def _extract(
     return ExtractedRepository(
         root=dest, file_count=file_count, directory_count=directory_count
     )
+
+
+def _copy_with_limit(src: IO[bytes], dst: IO[bytes], written: int, limit: int) -> int:
+    """Stream ``src`` to ``dst`` in chunks, aborting if the running total exceeds ``limit``.
+
+    Returns the new cumulative byte count. Raises :class:`ExtractedSizeLimitError` before writing
+    a chunk that would push the total past ``limit`` — the hard, un-bypassable size guard.
+    """
+
+    while True:
+        chunk = src.read(_COPY_CHUNK_BYTES)
+        if not chunk:
+            return written
+        written += len(chunk)
+        if written > limit:
+            raise ExtractedSizeLimitError(written, limit)
+        dst.write(chunk)

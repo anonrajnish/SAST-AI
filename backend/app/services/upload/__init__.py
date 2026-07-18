@@ -12,10 +12,15 @@ Slice 2: :func:`scan_archive` orchestrates the completed scan pipeline over an u
 from __future__ import annotations
 
 from .errors import (
+    ArchiveTooLargeError,
+    CompressionRatioLimitError,
     CorruptedArchiveError,
     EncryptedArchiveError,
+    ExtractedSizeLimitError,
+    FileCountLimitError,
     NestedArchiveError,
     PathTraversalError,
+    ResourceLimitError,
     SpecialFileError,
     SymlinkEntryError,
     UnsafeArchiveEntryError,
@@ -23,16 +28,23 @@ from .errors import (
     UploadError,
 )
 from .extractor import extract_zip
+from .limits import ExtractionLimits
 from .models import ExtractedRepository
 from .orchestration import ArchiveScanResult, scan_archive
 
 __all__ = [
     "ArchiveScanResult",
+    "ArchiveTooLargeError",
+    "CompressionRatioLimitError",
     "CorruptedArchiveError",
     "EncryptedArchiveError",
     "ExtractedRepository",
+    "ExtractedSizeLimitError",
+    "ExtractionLimits",
+    "FileCountLimitError",
     "NestedArchiveError",
     "PathTraversalError",
+    "ResourceLimitError",
     "SpecialFileError",
     "SymlinkEntryError",
     "UnsafeArchiveEntryError",

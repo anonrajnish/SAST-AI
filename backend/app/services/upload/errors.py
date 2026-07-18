@@ -1,4 +1,4 @@
-"""Typed errors for repository upload & safe extraction (Slice 1)."""
+"""Typed errors for repository upload & safe extraction (Slice 1, 3)."""
 
 from __future__ import annotations
 
@@ -42,3 +42,60 @@ class SpecialFileError(UnsafeArchiveEntryError):
 
 class NestedArchiveError(UnsafeArchiveEntryError):
     """An entry is itself an archive; nested archives are refused."""
+
+
+class ResourceLimitError(UploadError):
+    """Base class for a configured extraction resource limit being exceeded.
+
+    Carries the offending ``actual`` measurement and the configured ``limit`` (bytes, entry
+    count, or ratio) for diagnosability. Guards against ZIP-bomb / resource-exhaustion attacks.
+    """
+
+    def __init__(self, message: str, *, actual: float, limit: float) -> None:
+        super().__init__(message)
+        self.actual = actual
+        self.limit = limit
+
+
+class ArchiveTooLargeError(ResourceLimitError):
+    """The archive file on disk exceeds the maximum allowed size."""
+
+    def __init__(self, actual: int, limit: int) -> None:
+        super().__init__(
+            f"archive size {actual} bytes exceeds limit {limit} bytes",
+            actual=actual,
+            limit=limit,
+        )
+
+
+class ExtractedSizeLimitError(ResourceLimitError):
+    """The total uncompressed size exceeds the maximum allowed extracted size."""
+
+    def __init__(self, actual: int, limit: int) -> None:
+        super().__init__(
+            f"extracted size {actual} bytes exceeds limit {limit} bytes",
+            actual=actual,
+            limit=limit,
+        )
+
+
+class FileCountLimitError(ResourceLimitError):
+    """The archive contains more member entries than allowed."""
+
+    def __init__(self, actual: int, limit: int) -> None:
+        super().__init__(
+            f"archive entry count {actual} exceeds limit {limit}",
+            actual=actual,
+            limit=limit,
+        )
+
+
+class CompressionRatioLimitError(ResourceLimitError):
+    """The archive's compression ratio exceeds the maximum allowed (ZIP-bomb guard)."""
+
+    def __init__(self, actual: float, limit: float) -> None:
+        super().__init__(
+            f"compression ratio {actual:.1f}:1 exceeds limit {limit:.1f}:1",
+            actual=actual,
+            limit=limit,
+        )

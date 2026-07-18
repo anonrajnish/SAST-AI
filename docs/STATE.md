@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (REST API Slice 1 — /version endpoint + API architecture; prior: Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
+**Updated:** 2026-07-19 (Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; prior: REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -770,13 +770,142 @@ WebSockets, AI, or GitNexus (all out of scope).
   validation: `GET /api/v1/version` → 200 `{name, version, api_version, app_env}`, app title/version
   sourced from the shared constant, only health+version paths exposed, health intact.
 
+## Completed — Scan Job Lifecycle Slice 2: thread-safe in-memory ScanJobStore (2026-07-18)
+Second slice of the Scan Job Lifecycle (TASK-120 skeleton). Adds `ScanJobStore` — a **thread-safe
+in-memory registry** of immutable `ScanJob` snapshots, the intended **single source of truth** for
+job state that future REST endpoints will read/write. **In-memory only** — no DB, persistence,
+Redis, Celery, background workers, REST/upload/scan-pipeline/GitNexus/AI changes (all out of scope).
+The Slice-1 `ScanJob`/`ScanJobResult`/`ScanJobStatus` models and lifecycle functions are **reused
+unchanged**.
+
+- **Store** (`jobs/store.py` `ScanJobStore`): a `dict[str, ScanJob]` guarded by a single
+  `threading.Lock`. `create(job)` (rejects a duplicate `job_id`), `get(job_id)` (raises if absent),
+  `update(job)` (replaces an existing snapshot; raises if absent — never creates), `list()`
+  (returns an immutable `tuple` in a **deterministic** order: `created_at` then `job_id`). The store
+  holds the frozen snapshots by reference and returns them directly — it does not copy, wrap, or
+  mutate jobs, and does **not** police transition validity (that stays with the lifecycle functions).
+- **Typed store errors** (`jobs/errors.py`, extended): `DuplicateScanJobError` and
+  `ScanJobNotFoundError` (both `ScanJobError` subclasses carrying `job_id`) — ready to map to
+  409/404 when REST endpoints arrive.
+- **Tests** (`backend/tests/test_scan_job_store.py`, 13 tests): create/get (stored by reference),
+  duplicate-id rejection, missing get/update, update replaces snapshot + never creates, empty list,
+  deterministic ordering (inserted out of order), list returns an independent immutable snapshot,
+  serialization compatibility (completed job with nested `ArchiveScanResult` round-trips; every
+  `list()` item round-trips), a full-lifecycle integration (store tracks PENDING→COMPLETED), and
+  **thread safety** (500 concurrent unique creates all recorded; 500 concurrent updates leave
+  exactly one uncorrupted job).
+- **DoD gates green**: backend `ruff`/`mypy app` clean (51 files), `pytest` = **168 passed** (+13),
+  coverage **99.72%** (jobs package 100%); eval + contracts gates unaffected. Manual validation:
+  create/get/update/duplicate/missing/list-ordering behave as designed; 1000 concurrent creates →
+  1000 recorded (no loss); stored jobs remain JSON-serializable.
+
+## Completed — REST API Scan Endpoint Slice 1: synchronous POST /api/v1/scans (2026-07-18)
+First scan endpoint — the **vertical slice that converges upload + scan + jobs** over REST. It only
+orchestrates existing components (no new extraction/scan/job logic) and runs **synchronously**. No
+multipart upload, background workers, Celery/Redis, DB persistence, auth, WebSockets, GitNexus, AI,
+SARIF/JSON export, progress, cancellation, or retries.
+
+- **Endpoint** (`app/api/v1/scans.py`): `POST /api/v1/scans` → `create_scan_job()` → `store.create` →
+  `scan_archive(archive_path, config)` → `complete_scan_job` / `fail_scan_job` → `store.update` →
+  returns the final `ScanJob` (`response_model=ScanJob`). Reuses `ScanJob`, `ScanJobStore`,
+  `scan_archive`, the upload subsystem, and the scan pipeline **unchanged**.
+- **Request model** `ScanRequest` (`extra="forbid"`): `archive_path: Path` + `config: ScanConfig`
+  (the **existing** `ScanConfig`, reused as a nested model so its AUTO/MANUAL validation applies to
+  the request; defaults to AUTO). No multipart — uses the established archive-path approach.
+- **Outcome contract**: a **known** upload/scan failure (`UploadError` / `ScanError`) is a recorded
+  *outcome* — the job is marked `FAILED` and returned with **HTTP 200** (status/error in the body),
+  not an HTTP error. Malformed requests (missing/extra fields, invalid `ScanConfig` combos) are
+  rejected by request validation with **HTTP 422 before any job is created**. Unexpected exceptions
+  are not swallowed (would surface as 500).
+- **Shared store wiring** (`app/dependencies.py`): `get_scan_job_store()` — an `lru_cache`
+  process-wide `ScanJobStore` singleton (the single source of truth) exposed as `ScanJobStoreDep`;
+  tests override it via `app.dependency_overrides` for isolation. Router mounts the scans router on
+  `api_router` (`app/api/router.py`).
+- **Tests** (`backend/tests/test_scan_endpoint.py`, 11 tests): successful scan (COMPLETED + finding +
+  store updated), MANUAL scoping through the API, three failure paths (missing archive, Zip Slip,
+  and a monkeypatched `ScanExecutionError` → FAILED/200 with diagnostic), four invalid-request 422s
+  (missing field, unknown field, AUTO-with-groups, MANUAL-without-groups — each leaving the store
+  empty), response serialization round-trip (body reconstructs the stored `ScanJob`), and the
+  singleton store provider. `test_version.py` route-set guard updated to include `/api/v1/scans`.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (52 files), `pytest` = **178 passed** (+10),
+  coverage **99.73%** (`scans.py`/`dependencies.py` 100%); eval + contracts gates unaffected. Manual
+  validation (live TestClient): success → COMPLETED (1 finding, stored); MANUAL python scopes to
+  `a.py`; missing archive → FAILED/200 with `CorruptedArchiveError` diagnostic; AUTO-with-groups →
+  422 with no job created.
+
+## Completed — REST API Scan Endpoint Slice 2: GET read side + exception mapping (2026-07-19)
+The REST **read side**, completing the minimal scan surface. Reuses `ScanJobStore` **unchanged**;
+adds no extraction/scan/job logic. No multipart, persistence, auth, workers, WebSockets, GitNexus,
+AI, or export.
+
+- **`GET /api/v1/scans`** (`app/api/v1/scans.py` `list_scans`): returns `store.list()` — the
+  deterministic job list (by `created_at`, then `job_id`) — as `list[ScanJob]`.
+- **`GET /api/v1/scans/{job_id}`** (`get_scan`): returns `store.get(job_id)`; an unknown id raises
+  `ScanJobNotFoundError`, mapped to **404**. No per-endpoint try/except — the endpoint just lets the
+  typed error propagate.
+- **App-level exception mapping** (`app/api/exception_handlers.py`, new; wired in `create_app`):
+  `register_exception_handlers(app)` maps `ScanJobNotFoundError → 404` and `DuplicateScanJobError →
+  409` (JSON `{"detail": ...}`). Request-validation errors keep FastAPI's default **422**. The
+  mapping is app-wide, so the existing POST path's `store.create` collision now surfaces as 409 too.
+- **Do-not-modify honored**: no changes to the upload subsystem, scan pipeline, orchestration, scan
+  jobs, `ScanJobStore`, analyzer registry, or deterministic analyzers. Only additive API wiring
+  (`main.py` registers handlers; `router.py` already mounts the scans router).
+- **Tests** (`backend/tests/test_scan_endpoint.py`, +7): empty list, deterministic ordering (seeded
+  out of order), list reflects a submitted scan, get existing job (round-trips to the stored job),
+  missing job → 404 (detail carries the id), and duplicate → 409 (POST forced to collide via a
+  monkeypatched id). `test_version.py` route-set guard updated with `/api/v1/scans/{job_id}`.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (53 files), `pytest` = **184 passed** (+6),
+  coverage **99.74%** (`scans.py`/`exception_handlers.py`/`main.py` 100%); eval + contracts
+  unaffected. Manual validation (live TestClient): empty list `[]`; ordering `[a,b]` (seeded b,a);
+  get existing → 200; missing → 404 `{"detail":"scan job not found: 'nope'"}`; POST then GET reflects
+  the completed job; forced collision → 409 `{"detail":"scan job already exists: 'a'"}`.
+
+## Completed — Repository Upload Slice 3: ZIP-bomb / resource-limit hardening (2026-07-19)
+Hardens the existing extractor against resource-exhaustion attacks (TASK-131, P0), landing **with**
+the feature now that it is reachable through the REST API. Reuses the Slice-1 extractor structure;
+the scan pipeline, upload orchestration, REST API, scan jobs, deterministic analyzers, and eval
+harness are **unchanged**. No ClamAV, persistence, cleanup scheduler, workers, GitNexus, or AI.
+
+- **Configurable limits** (`upload/limits.py` `ExtractionLimits`, frozen, all `> 0`):
+  `max_archive_bytes`, `max_total_uncompressed_bytes`, `max_file_count`, `max_compression_ratio`.
+  Defaults live in **`app.config.Settings`** (env-overridable, e.g. `EXTRACTION_MAX_ARCHIVE_BYTES`):
+  100 MiB archive / 1 GiB extracted / 10 000 entries / 100:1 ratio. `extract_zip` gained an optional
+  `limits` param; when omitted it sources them from settings (`_default_limits`), so the bounds are
+  configurable through the existing configuration system **without** threading a param through the
+  (unchanged) orchestration/REST layers.
+- **Enforcement — before and during extraction** (`upload/extractor.py`): before opening, the
+  on-disk archive size is checked (`ArchiveTooLargeError`); from the central directory (pre-write),
+  member count (`FileCountLimitError`), total declared uncompressed size (`ExtractedSizeLimitError`),
+  and the overall compression ratio (`CompressionRatioLimitError`) are checked — so a bomb is
+  rejected **before any temp dir is created** and CRC/`testzip` never runs on it. During streaming,
+  `_copy_with_limit` caps the **actual** bytes written at `max_total_uncompressed_bytes`, so a lying
+  central-directory header cannot bypass the extracted-size limit; a mid-stream abort cleans up.
+- **Typed exceptions** (`upload/errors.py`): `ResourceLimitError(UploadError)` base (carries
+  `actual`/`limit`) + one subclass per limit (above). Being `UploadError` subclasses, they propagate
+  through `scan_archive` and map to a **FAILED job at HTTP 200** at the REST layer unchanged.
+- **Tests** (`backend/tests/test_upload_limits.py`, 10 new; + propagation/REST tests): valid archive
+  within limits; oversized archive; excessive file count; excessive extracted size; ZIP-bomb ratio
+  (~1000:1 deflated payload); the streaming cap unit (`_copy_with_limit` aborts / returns total);
+  all limit errors are `ResourceLimitError`; limits default from settings (patched `get_settings`);
+  propagation through `scan_archive` (`test_upload_scan_orchestration.py`); and unchanged REST
+  behavior — a limit violation → FAILED/200 (`test_scan_endpoint.py`). Updated the Slice-1
+  cleanup-on-failure test to patch `_copy_with_limit` (extraction no longer uses `shutil.copyfileobj`).
+- **DoD gates green**: backend `ruff`/`mypy app` clean (54 files), `pytest` = **195 passed** (+11),
+  coverage **99.76%** (upload package + config 100%); eval + contracts gates unaffected. Manual
+  validation: valid extract OK; oversized/file-count/extracted-size/ratio each raise their typed
+  error (bomb caught at ~1014:1); rejected archives leave **no** temp dir; config defaults active.
+
 ## In Progress
-- Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–2 complete** (validated
-  ZIP extraction + upload→scan orchestration). Later slices: ZIP-bomb / resource limits, ClamAV,
-  extraction cleanup lifecycle, and the REST/upload API + persistence.
-- REST API (TASK-110/112 surface) — **Slice 1 complete** (/version + API architecture, above). Later
-  slices: scan-trigger + scan-status endpoints wiring `create_scan_job → scan_archive →
-  complete/fail`, request/response schemas, then API middleware (rate-limit, security headers, CORS).
+- Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–3 complete** (validated
+  ZIP extraction; upload→scan orchestration; ZIP-bomb / resource-limit hardening). Later: ClamAV,
+  extraction cleanup lifecycle, multipart upload + persistence.
+- Scan Job Lifecycle (TASK-120 skeleton) — **Slices 1–2 complete** (immutable models + transitions;
+  thread-safe `ScanJobStore`). Later slices: async execution (Celery), progress, cancellation.
+- REST API (TASK-110/112 surface) — **Slice 1 (foundation) + Scan Endpoint Slices 1–2 complete**
+  (`/version`; synchronous `POST /api/v1/scans`; `GET /api/v1/scans` + `GET /api/v1/scans/{id}`;
+  typed-exception → 404/409 mapping). Next candidates: **ZIP-bomb / resource-limit hardening
+  (Upload Slice 3, TASK-131, P0 — should land before real network exposure)**, then API middleware
+  (rate-limit, security headers, CORS), then multipart upload.
 - Scan Job Lifecycle (TASK-120 skeleton) — **Slice 1 complete** (immutable in-memory models +
   transitions, above). Later slices: an in-memory job store/registry, wiring `create → run
   scan_archive → complete/fail`, then (much later) async execution (Celery), progress, cancellation.
@@ -813,10 +942,59 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (REST API Slice 1 — /version endpoint + API architecture; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; awaiting human review before merge)
 
 ## Last Completed Task
-REST API **Slice 1** — `/version` endpoint + API architecture. Reused the existing Engineering-
+Repository Upload **Slice 3** — ZIP-bomb / resource-limit hardening (TASK-131). Added configurable
+`ExtractionLimits` (`upload/limits.py`; `max_archive_bytes` / `max_total_uncompressed_bytes` /
+`max_file_count` / `max_compression_ratio`) with defaults in `app.config.Settings` (env-overridable);
+`extract_zip` gained an optional `limits` param, defaulting from settings (`_default_limits`) so the
+bounds are config-driven without changing the (untouched) orchestration/REST layers. Enforcement:
+on-disk archive size before opening; member count / declared uncompressed total / compression ratio
+from the central directory before any temp dir is created; plus a streaming `_copy_with_limit` cap on
+actual bytes so a lying header can't bypass the extracted-size limit (mid-stream abort cleans up).
+Typed `ResourceLimitError(UploadError)` base + `ArchiveTooLargeError`/`ExtractedSizeLimitError`/
+`FileCountLimitError`/`CompressionRatioLimitError` (carry actual/limit) — propagate through
+scan_archive and map to a FAILED job/200 at REST unchanged. Scan pipeline/orchestration/REST/jobs/
+analyzers/eval unchanged; no ClamAV/persistence/cleanup-scheduler/workers/GitNexus/AI. Backend gates
+green (ruff/mypy clean, 54 files; pytest 195 passed; coverage 99.76%, upload+config 100%);
+eval+contracts unaffected; manual validation: each guard raises its typed error (bomb ~1014:1), no
+partial extraction, config defaults active; awaiting human review before merge. Prior:
+REST API **Scan Endpoint Slice 2** — the GET read side + exception mapping. `GET /api/v1/scans`
+(`list_scans` → `store.list()` as `list[ScanJob]`, deterministic order) and `GET /api/v1/scans/{job_id}`
+(`get_scan` → `store.get`, unknown id → `ScanJobNotFoundError`). Added app-level exception handlers
+(`app/api/exception_handlers.py`, wired in `create_app`) mapping `ScanJobNotFoundError → 404` and
+`DuplicateScanJobError → 409` (`{"detail": ...}`); request-validation stays 422. `ScanJobStore` and
+all services reused unchanged; additive API wiring only. No multipart/persistence/auth/workers/
+WebSockets/GitNexus/AI/export. Backend gates green (ruff/mypy clean, 53 files; pytest 184 passed;
+coverage 99.74%, new code 100%); eval+contracts unaffected; manual validation (live TestClient):
+empty list, deterministic ordering, get existing, missing→404, POST-then-GET reflects completed job,
+forced collision→409; awaiting human review before merge. Prior:
+REST API **Scan Endpoint Slice 1** — synchronous `POST /api/v1/scans` (`app/api/v1/scans.py`), the
+vertical slice converging upload+scan+jobs. `ScanRequest{archive_path, config: ScanConfig=auto}`
+(`extra="forbid"`, reuses `ScanConfig` validation → 422 on bad input); handler runs
+`create_scan_job → store.create → scan_archive → complete/fail → store.update → return ScanJob`
+(response_model=`ScanJob`), reusing all existing components unchanged and staying synchronous. Known
+`UploadError`/`ScanError` failures → job `FAILED`, HTTP 200 (outcome in body); malformed requests →
+422 before any job is created. Wired a process-wide `ScanJobStore` singleton via
+`get_scan_job_store` (`lru_cache`) / `ScanJobStoreDep` (`app/dependencies.py`), overridable in tests;
+mounted the scans router. No multipart/workers/Celery/Redis/DB/auth/WebSockets/GitNexus/AI/export/
+progress/cancellation. Backend gates green (ruff/mypy clean, 52 files; pytest 178 passed; coverage
+99.73%, scans.py/dependencies.py 100%); eval+contracts unaffected; manual validation (live
+TestClient): success→COMPLETED+stored, MANUAL scoping, missing-archive→FAILED/200, AUTO+groups→422
+no job; awaiting human review before merge. Prior: Scan Job Lifecycle **Slice 2** — thread-safe
+in-memory `ScanJobStore` (`jobs/store.py`): a
+`dict[str, ScanJob]` under a `threading.Lock` with `create` (duplicate-id → `DuplicateScanJobError`),
+`get` / `update` (absent → `ScanJobNotFoundError`; update never creates), and `list()` (immutable
+tuple ordered by `created_at` then `job_id`). Holds the immutable Slice-1 `ScanJob` snapshots by
+reference (no copy/wrap/mutate) and doesn't police transitions — the single source of truth for
+future REST endpoints. Added typed store errors (`DuplicateScanJobError`/`ScanJobNotFoundError`).
+In-memory only (no DB/persistence/Redis/Celery/workers); no REST/upload/scan/GitNexus/AI changes;
+Slice-1 models + lifecycle reused unchanged. Backend gates green (ruff/mypy clean, 51 files; pytest
+168 passed; coverage 99.72%, jobs package 100%); eval+contracts unaffected; manual validation:
+create/get/update/duplicate/missing/ordering correct, 1000 concurrent creates all recorded, stored
+jobs JSON-serializable; awaiting human review before merge. Prior: REST API **Slice 1** — `/version`
+endpoint + API architecture. Reused the existing Engineering-
 Foundation FastAPI skeleton (app factory, `/api/v1` router aggregator, `/health` + `/live`/`/ready`,
 `SettingsDep`/`SessionDep`) **unchanged** and added the missing pieces: `app/meta.py` (single source
 of truth for `APP_NAME`/`APP_VERSION`/`API_VERSION`) and `app/api/v1/version.py` (`GET /api/v1/version`

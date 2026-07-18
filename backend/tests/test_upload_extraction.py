@@ -281,10 +281,10 @@ def test_unexpected_extraction_failure_cleans_up(
         tmp_path / "repo.zip", lambda zf: zf.writestr("a.py", "x = 1\n")
     )
 
-    def _boom(src: object, dst: object, length: int = 0) -> None:
+    def _boom(src: object, dst: object, written: int, limit: int) -> int:
         raise RuntimeError("disk full")
 
-    monkeypatch.setattr("app.services.upload.extractor.shutil.copyfileobj", _boom)
+    monkeypatch.setattr("app.services.upload.extractor._copy_with_limit", _boom)
 
     with pytest.raises(RuntimeError):
         extract_zip(archive, workspace_dir=tmp_path)
