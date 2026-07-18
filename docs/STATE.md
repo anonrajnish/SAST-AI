@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (6th/final deterministic analyzer: reverse tabnabbing — MVP deterministic analyzer suite complete; prior: 5th TLS verification disabled; 4th unsafe deserialization; 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
+**Updated:** 2026-07-18 (deterministic framework stabilization pass — registry, test consolidation, doc refresh; prior: 6th/final analyzer reverse tabnabbing — MVP analyzer suite complete; 5th TLS verification disabled; 4th unsafe deserialization; 2026-07-15 multi-language MVP scope reconciliation; 2026-07-10 ARCHITECTURE_v2.3 + approved review)
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -467,6 +467,37 @@ Harness logic unchanged (only corpus data + the loader id-set test touched).
   → TP=2/FP=0/FN=0, **P=1.0, R=1.0** (incl. the mixed-case `Target=_blank` case); safe
   `rel="noopener"`/`rel="noreferrer"`/`window.open(..., "noopener")` confirmed **not** flagged.
 
+## Completed — Deterministic framework stabilization (2026-07-18)
+Post-milestone stabilization of the deterministic analyzer framework (approved review items
+M1, M2, S1, S2, S3, S4, S6 — **no new analyzers, no architecture redesign**). Deferred by the
+reviewer: M3 (shared `Finding`/`Detector` contract relocation → the Scan Pipeline milestone)
+and S5 (`code_exec`→`code_execution` rename → not worth the churn). Nice-to-Have items left
+for later. The scanning engine (`rules.py`) and `PatternAnalyzer` (`analyzer.py`) are unchanged.
+
+- **S4 — analyzer registry** (`backend/app/services/deterministic/registry.py`): single source of
+  truth `DETERMINISTIC_ANALYZERS` (all six analyzer instances, stable order) + `ANALYZERS_BY_NAME`;
+  re-exported from the package `__init__`. Replaces ad-hoc scanner instantiation.
+- **S1 — no more `detector_name` duplication**: `evaluate_corpus` now defaults `detector_name`
+  from the detector's own `detector_name` attribute (explicit arg still overrides). Callers/tests
+  no longer repeat the name string. `interface.py` was the only harness-logic module changed
+  (authorized under S1); `runner`/`evaluation`/`metrics`/`loader`/`validator`/`models` logic unchanged.
+- **S2 — shared test helper**: `write_file` fixture in `backend/tests/conftest.py`; the seven
+  deterministic unit-test files dropped their duplicated local `_write`.
+- **S3 — test consolidation**: five per-analyzer eval corpus-integrity tests collapsed into one
+  parametrized `eval/harness/tests/test_deterministic_corpora.py`; six per-analyzer backend harness
+  tests collapsed into one parametrized `backend/tests/test_deterministic_harness.py` (driven by the
+  S4 registry; also asserts the S1 default). `project_curated`/`web_curated` corpus tests kept
+  (different shape). Eleven superseded test files deleted.
+- **M1/M2/S6 — documentation**: rewrote `eval/README.md` to steady state (committed corpora,
+  runner/metrics/interface complete, Python+Web, the analyzer micro-corpora); refreshed the stale
+  "no implementation exists / no real analyzer in this slice / later slice" docstrings in
+  `eval/harness/__init__.py`, `evaluation.py`, and `runner.py`.
+- **DoD gates green**: backend `ruff`/`mypy app` clean (30 files), `pytest` = **58 passed**, coverage
+  **99.30%**; eval harness `ruff`/`mypy --strict` clean (22 files), `pytest` = **104 passed**. Manual
+  validation: registry enumerates all six analyzers (`ANALYZERS_BY_NAME` consistent); `evaluate_corpus`
+  called **without** `detector_name` correctly defaults it from each analyzer; all analyzer corpora
+  still P=1.0/R=1.0.
+
 ## Deferred (was In Progress)
 - ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
   (see TASK_BACKLOG Phase 1); resumes when Phase 1 is scheduled. Current active work stream is the
@@ -504,10 +535,23 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (6th/final deterministic analyzer: reverse tabnabbing — MVP pattern-analyzer suite complete; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (deterministic framework stabilization pass — registry + test consolidation + doc refresh; awaiting human review before merge)
 
 ## Last Completed Task
-Sixth and final MVP deterministic analyzer — reverse tabnabbing (CWE-1022): rulepack
+Deterministic framework stabilization pass (approved review items M1/M2/S1/S2/S3/S4/S6; M3 + S5
+deferred). Added the analyzer registry (`registry.py`: `DETERMINISTIC_ANALYZERS` /
+`ANALYZERS_BY_NAME`, re-exported from the package `__init__`) as the single source of truth;
+`evaluate_corpus` now defaults `detector_name` from the detector's own attribute (removed the
+duplicated name string from every caller/test); added a shared `write_file` conftest fixture and
+dropped seven local `_write` copies; consolidated five eval corpus tests + six backend harness
+tests into two registry-driven parametrized tests and deleted eleven superseded files; rewrote
+`eval/README.md` and refreshed stale slice-oriented docstrings (`eval/harness/__init__.py`,
+`evaluation.py`, `runner.py`) (2026-07-18). Scanning engine (`rules.py`) and `PatternAnalyzer`
+(`analyzer.py`) unchanged; `interface.py` changed only for the S1 default. Backend gates green
+(ruff/mypy clean; pytest 58 passed; coverage 99.30%); eval harness gates green (ruff/mypy --strict
+clean; 104 passed); manual validation: registry enumerates all six analyzers and the `detector_name`
+default resolves from each analyzer, all corpora still P=1.0/R=1.0; awaiting human review before
+merge. Prior: sixth and final MVP deterministic analyzer — reverse tabnabbing (CWE-1022): rulepack
 `reverse_tabnabbing_rules.py` (HTML `<a target="_blank">` without `rel=noopener`/`noreferrer`,
 case-insensitive; JS/TS `window.open(..., "_blank")` without `noopener`; `<form>`/`<area>` and
 multi-line/data-flow cases out of scope) + thin `ReverseTabnabbingScanner` (a `PatternAnalyzer`

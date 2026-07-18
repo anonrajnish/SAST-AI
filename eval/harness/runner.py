@@ -5,8 +5,8 @@ detector reports (:class:`Finding`) and deterministically classifies each
 ground-truth label against those findings as a true positive, false positive, or
 false negative. It is **read-only and analyzer-agnostic** — it neither runs nor
 imports any detector or AI, and it does not compute precision/recall/F1 (that is
-the metrics reporter, TASK-020c). Detector orchestration over a corpus tree is a
-later TASK-020b slice.
+the metrics reporter, :mod:`~eval.harness.metrics`). Detector orchestration over a
+corpus tree lives in :mod:`~eval.harness.evaluation`.
 
 True negatives are intentionally **not modelled**: they are not well-defined for
 SAST evaluation and are not required for the MVP metrics (precision, recall, F1).

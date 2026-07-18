@@ -69,11 +69,19 @@ def evaluate_corpus(
     with :func:`~eval.harness.metrics.compute_metrics`; otherwise the detector was
     not run and ``metrics``/``evaluation`` are ``None``.
 
+    ``detector_name`` labels the result for reporting. When omitted it defaults to
+    the detector's own ``detector_name`` attribute if it exposes one (as every
+    :class:`~app.services.deterministic.analyzer.PatternAnalyzer` does), so callers
+    need not repeat the name; pass it explicitly only to override.
+
     Raises the loader's :class:`~eval.harness.errors.CorpusRegistryError` for an
     unknown ``corpus_id`` and :class:`~eval.harness.errors.LabelFileError` /
     :class:`~eval.harness.errors.LabelSchemaError` for an unreadable or invalid
     label file.
     """
+
+    if detector_name is None:
+        detector_name = getattr(detector, "detector_name", None)
 
     corpus_eval = run_evaluation(
         detector,

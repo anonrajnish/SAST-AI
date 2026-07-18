@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from app.services.deterministic.tls_verification_scanner import TlsVerificationScanner
 
 
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-
-
-def test_flags_python_verify_false_and_unverified_context(tmp_path: Path) -> None:
-    _write(tmp_path / "r.py", "import requests\nrequests.get(url, verify=False)\n")
-    _write(tmp_path / "s.py", "session.verify = False\n")
-    _write(tmp_path / "c.py", "import ssl\nctx = ssl._create_unverified_context()\n")
+def test_flags_python_verify_false_and_unverified_context(
+    tmp_path: Path, write_file: Callable[[Path, str], None]
+) -> None:
+    write_file(tmp_path / "r.py", "import requests\nrequests.get(url, verify=False)\n")
+    write_file(tmp_path / "s.py", "session.verify = False\n")
+    write_file(tmp_path / "c.py", "import ssl\nctx = ssl._create_unverified_context()\n")
 
     findings = TlsVerificationScanner().scan(tmp_path)
 
@@ -25,25 +23,31 @@ def test_flags_python_verify_false_and_unverified_context(tmp_path: Path) -> Non
         assert finding.detector == "tls-verification-scanner"
 
 
-def test_flags_javascript_reject_unauthorized_false(tmp_path: Path) -> None:
-    _write(tmp_path / "a.js", "const agent = new https.Agent({ rejectUnauthorized: false });\n")
-    _write(tmp_path / "b.ts", "const opts = { rejectUnauthorized: false };\n")
+def test_flags_javascript_reject_unauthorized_false(
+    tmp_path: Path, write_file: Callable[[Path, str], None]
+) -> None:
+    write_file(tmp_path / "a.js", "const agent = new https.Agent({ rejectUnauthorized: false });\n")
+    write_file(tmp_path / "b.ts", "const opts = { rejectUnauthorized: false };\n")
 
     findings = TlsVerificationScanner().scan(tmp_path)
 
     assert {f.location.file for f in findings} == {"a.js", "b.ts"}
 
 
-def test_ignores_enabled_verification(tmp_path: Path) -> None:
-    _write(tmp_path / "a.py", "import requests\nrequests.get(url, verify=True)\n")
-    _write(tmp_path / "b.py", "import ssl\nctx = ssl.create_default_context()\n")
-    _write(tmp_path / "c.js", "const agent = new https.Agent({ rejectUnauthorized: true });\n")
+def test_ignores_enabled_verification(
+    tmp_path: Path, write_file: Callable[[Path, str], None]
+) -> None:
+    write_file(tmp_path / "a.py", "import requests\nrequests.get(url, verify=True)\n")
+    write_file(tmp_path / "b.py", "import ssl\nctx = ssl.create_default_context()\n")
+    write_file(tmp_path / "c.js", "const agent = new https.Agent({ rejectUnauthorized: true });\n")
 
     assert TlsVerificationScanner().scan(tmp_path) == []
 
 
-def test_ignores_comparison_and_identifier_substring(tmp_path: Path) -> None:
-    _write(
+def test_ignores_comparison_and_identifier_substring(
+    tmp_path: Path, write_file: Callable[[Path, str], None]
+) -> None:
+    write_file(
         tmp_path / "a.py",
         "if verify == False:\n    handle()\nmyverify=False\n",
     )

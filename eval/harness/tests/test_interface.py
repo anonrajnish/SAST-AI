@@ -29,6 +29,16 @@ class _FixedDetector:
         return list(self._findings)
 
 
+class _NamedDetector:
+    """A fake detector that exposes ``detector_name`` like a real PatternAnalyzer."""
+
+    def __init__(self, detector_name: str) -> None:
+        self.detector_name = detector_name
+
+    def scan(self, corpus_root: Path) -> list[Finding]:
+        return []
+
+
 class _RaisingDetector:
     def scan(self, corpus_root: Path) -> list[Finding]:
         raise AssertionError("detector must not run when integrity fails")
@@ -71,7 +81,7 @@ def test_evaluate_corpus_detector_name_defaults_to_none() -> None:
     registry = load_corpus_registry(_REGISTRY_PATH)
 
     result = evaluate_corpus(
-        _FixedDetector([]),
+        _FixedDetector([]),  # no detector_name attribute -> falls back to None
         "web_curated_js",
         registry=registry,
         labels_dir=_LABELS_DIR,
@@ -82,6 +92,35 @@ def test_evaluate_corpus_detector_name_defaults_to_none() -> None:
     assert result.status is EvaluationStatus.EVALUATED
     assert result.metrics is not None
     assert result.metrics.false_negatives == 2  # both vulnerable labels missed
+
+
+def test_evaluate_corpus_detector_name_defaults_from_detector() -> None:
+    registry = load_corpus_registry(_REGISTRY_PATH)
+
+    result = evaluate_corpus(
+        _NamedDetector("named-fake"),  # exposes detector_name like a PatternAnalyzer
+        "web_curated_js",
+        registry=registry,
+        labels_dir=_LABELS_DIR,
+        corpus_base_dir=_COMMITTED,
+    )
+
+    assert result.detector_name == "named-fake"  # taken from the detector, not repeated
+
+
+def test_evaluate_corpus_explicit_detector_name_overrides_detector() -> None:
+    registry = load_corpus_registry(_REGISTRY_PATH)
+
+    result = evaluate_corpus(
+        _NamedDetector("named-fake"),
+        "web_curated_js",
+        registry=registry,
+        labels_dir=_LABELS_DIR,
+        corpus_base_dir=_COMMITTED,
+        detector_name="explicit-override",
+    )
+
+    assert result.detector_name == "explicit-override"
 
 
 def test_evaluate_corpus_unknown_corpus_raises() -> None:

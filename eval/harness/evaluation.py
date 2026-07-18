@@ -1,12 +1,12 @@
-"""Single-corpus evaluation orchestration for the eval runner (TASK-020b, Slice 2).
+"""Single-corpus evaluation orchestration for the eval runner (TASK-020b).
 
-Wires the already-built harness components together: it loads a corpus's labels
-(loader), gates them for referential integrity against the corpus tree
-(validator), invokes a caller-supplied :class:`Detector` over the corpus root,
-and scores its findings against the ground truth (matcher). It is
-**analyzer-agnostic** — it knows only the :class:`Detector` protocol and the
-:class:`~eval.harness.runner.Finding` type — and implements **no analyzer, no AI,
-no metrics** (precision/recall/F1 is TASK-020c) and **no CLI/API** (TASK-021).
+Wires the harness components together: it loads a corpus's labels (loader), gates
+them for referential integrity against the corpus tree (validator), invokes a
+caller-supplied :class:`Detector` over the corpus root, and scores its findings
+against the ground truth (matcher). It is **analyzer-agnostic** — it knows only the
+:class:`Detector` protocol and the :class:`~eval.harness.runner.Finding` type — and
+computes no metrics here (precision/recall/F1 lives in :mod:`~eval.harness.metrics`,
+surfaced via :func:`~eval.harness.interface.evaluate_corpus`).
 
 Integrity failure is an **expected evaluation outcome**, not an exception: when the
 labels do not match the corpus tree, :func:`run_evaluation` returns a
@@ -33,8 +33,9 @@ class Detector(Protocol):
     """Interface an analyzer implements to be scored by the harness.
 
     The harness treats a detector as an opaque static analyzer: it hands over the
-    resolved corpus root and consumes the returned findings as data. No real
-    analyzer is implemented in this slice.
+    resolved corpus root and consumes the returned findings as data. The concrete
+    analyzers live in ``app.services.deterministic`` (backend); the harness depends
+    only on this protocol, never on a specific analyzer.
     """
 
     def scan(self, corpus_root: Path) -> list[Finding]:
