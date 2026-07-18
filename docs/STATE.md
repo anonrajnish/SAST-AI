@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-18 (Scan Pipeline Slice 2 — resolution + registry-driven selection; prior: Slice 1 language foundation; Slice 0 shared `contracts` package (M3); deterministic framework stabilization pass; 6th/final analyzer reverse tabnabbing — MVP analyzer suite complete)
+**Updated:** 2026-07-18 (Scan Pipeline Slice 3 — execution + aggregation / `scan_repository`; prior: Slice 2 resolution + registry-driven selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3); deterministic framework stabilization pass)
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -509,7 +509,7 @@ files scanned, findings count). **No** GitNexus / taint / REST / SARIF / resourc
 in this milestone. Approved adjustments: analyzer metadata (language groups, CWE coverage) lives in
 the **registry** (not on `PatternAnalyzer`); manual selection supports Python, Web, or both.
 Slices: **0 shared contract (M3) ✅** → **1 language foundation ✅** → **2 resolution + registry
-selection ✅** → 3 execution + aggregation → 4 triage-ready shaping.
+selection ✅** → **3 execution + aggregation ✅** → 4 triage-ready shaping.
 
 ## Completed — Scan Pipeline Slice 0: shared `contracts` package (M3, 2026-07-18)
 Relocated the shared analysis contract out of the eval package so the backend no longer depends on
@@ -577,6 +577,30 @@ registry. **No execution, no aggregation, no `scan_repository()`** (later slices
   Python = 5 analyzers (Web-only reverse-tabnabbing excluded), Web / Python+Web = all 6, empty = none,
   all in registry order.
 
+## Completed — Scan Pipeline Slice 3: execution + aggregation (2026-07-18)
+The deterministic execution pipeline end to end: detect → resolve → select → execute → aggregate →
+`ScanResult`. **No dedup, no `finding_id`, no AI triage, no SARIF, no GitNexus** (later/other work);
+analyzer behavior unchanged.
+
+- **Result models** (`scan/results.py`): `ScanStatus` (`COMPLETED` / `NO_SUPPORTED_LANGUAGES`);
+  `AnalyzerRun` (detector_name + finding_count); `ScanResult` (frozen, `extra="forbid"`) with `status`,
+  `detected_language_groups`, `resolved_language_groups`, `analyzer_runs`, `files_scanned`,
+  `total_findings`, `findings` — JSON-serializable, ready for a future triage stage.
+- **Entry point** (`scan/pipeline.py`): `scan_repository(repo_root, config, *, registry=ANALYZER_REGISTRY)`.
+  Executes the selected analyzers in **registry order**, concatenating findings; findings are **scoped
+  to the resolved language groups** (`_finding_in_scope`) so a MANUAL selection ignores other supported
+  languages (analyzers unmodified). `files_scanned` = supported files in the resolved groups
+  (`count_files_in_scope`, read-only, added to `detection.py`).
+- **Structured no-language outcome**: AUTO detecting nothing supported returns `NO_SUPPORTED_LANGUAGES`
+  with empty runs/findings (MANUAL always resolves to ≥1 group).
+- **Errors** (`scan/errors.py`): `ScanError` base; `RepositoryError` (missing/not-a-directory root);
+  `ScanExecutionError` (fail-fast wrap of an unexpected analyzer exception, carrying `detector_name`).
+- **DoD gates green**: backend `ruff`/`mypy app` clean (38 files), `pytest` = **92 passed**, coverage
+  **99.55%**; eval + contracts gates unaffected (still green). Manual validation over the committed
+  weak-crypto corpus (mixed Python+JS): AUTO → both groups, 8 files, 4 findings, 6 analyzers; MANUAL
+  Python → 4 files, 2 findings, 5 analyzers, all under `python/` (JS ignored); MANUAL Web → JS findings
+  only; `docs/` AUTO → `NO_SUPPORTED_LANGUAGES`; missing root → `RepositoryError`.
+
 ## Deferred (was In Progress)
 - ZIP upload module (TASK-130) — **deferred**, not actively in progress. Parked Phase-1 item
   (see TASK_BACKLOG Phase 1); resumes when Phase 1 is scheduled. Current active work stream is the
@@ -614,10 +638,19 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Scan Pipeline Slice 2 — resolution + registry-driven selection; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Scan Pipeline Slice 3 — execution + aggregation / scan_repository; awaiting human review before merge)
 
 ## Last Completed Task
-Scan Pipeline **Slice 2** — AUTO/MANUAL resolution + registry-driven analyzer selection.
+Scan Pipeline **Slice 3** — deterministic execution + aggregation. `scan_repository(repo_root, config)`
+runs detect → resolve → select → execute (registry order) → aggregate → `ScanResult` (`ScanStatus`,
+`AnalyzerRun`, detected/resolved groups, files_scanned, total_findings, findings). Findings scoped to
+resolved groups so MANUAL ignores other languages (analyzers unmodified); AUTO with nothing supported →
+`NO_SUPPORTED_LANGUAGES`; missing root → `RepositoryError`; unexpected analyzer failure →
+`ScanExecutionError` (fail-fast). No dedup/finding_id/AI/SARIF/GitNexus. Backend gates green (ruff/mypy
+clean, 38 files; pytest 92 passed; coverage 99.55%); eval+contracts unaffected; manual validation over
+the committed corpora passed; awaiting human review before merge. Next: Scan Pipeline Slice 4
+(triage-ready result shaping). Prior: Slice 2 — AUTO/MANUAL resolution + registry-driven analyzer
+selection.
 `resolve_target_groups(config, detected)` (AUTO→detected, MANUAL→selected); `select_analyzers(groups)`
 returns registry analyzers whose metadata groups intersect, in registry order. Enriched the
 deterministic registry as the single source of truth: `AnalyzerEntry` (analyzer + `language_groups` +

@@ -53,3 +53,24 @@ def detect_language_groups(repo_root: Path) -> frozenset[LanguageGroup]:
         if group is not None:
             groups.add(group)
     return frozenset(groups)
+
+
+def count_files_in_scope(repo_root: Path, groups: frozenset[LanguageGroup]) -> int:
+    """Count regular files under ``repo_root`` whose language group is in ``groups``.
+
+    Read-only and extension-based, mirroring :func:`detect_language_groups` (symlinks and
+    non-files skipped). Used as the pipeline's "files scanned" summary; it does not read
+    file contents.
+    """
+
+    count = 0
+    for path in repo_root.rglob("*"):
+        if path.is_symlink() or not path.is_file():
+            continue
+        language = language_for(path)
+        if language is None:
+            continue
+        group = group_for_language(language)
+        if group is not None and group in groups:
+            count += 1
+    return count
