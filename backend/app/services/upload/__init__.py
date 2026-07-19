@@ -31,6 +31,7 @@ from .extractor import extract_zip
 from .limits import ExtractionLimits
 from .models import ExtractedRepository
 from .orchestration import ArchiveScanResult, scan_archive
+from .streaming import sanitize_upload_filename, stream_zip_to_temp
 
 __all__ = [
     "ArchiveScanResult",
@@ -51,5 +52,7 @@ __all__ = [
     "UnsupportedArchiveError",
     "UploadError",
     "extract_zip",
+    "sanitize_upload_filename",
     "scan_archive",
+    "stream_zip_to_temp",
 ]

@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-19 (Reporting Layer Slice 2 — SARIF 2.1.0 export; prior: Reporting Layer Slice 1 — versioned JSON report export; Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
+**Updated:** 2026-07-19 (Multipart Upload — secure file-upload ingestion for POST /api/v1/scans; prior: Reporting Layer Slice 2 — SARIF 2.1.0 export; Reporting Layer Slice 1 — versioned JSON report export; Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -964,10 +964,53 @@ serializes `ScanReport`). No changes to scan pipeline, analyzers, upload, jobs, 
   SARIF from a real mixed scan — valid 2.1.0, 6 detector rules, all `warning`, `aiSastFindingHash/v1`
   fingerprints, no invocations, byte-identical re-render, and no source/secret text present.
 
+## Completed — Multipart Upload: secure file-upload ingestion (2026-07-19)
+Replaces the server-side `archive_path` input to `POST /api/v1/scans` with a real
+**multipart/form-data file upload**, closing the path-traversal/LFI vector. The endpoint stays
+orchestration-only and reuses `scan_archive`, the job lifecycle, and the store unchanged; the
+extraction pipeline and all its hardening are untouched.
+
+- **Endpoint** (`app/api/v1/scans.py`): `POST /api/v1/scans` now accepts `file: UploadFile` +
+  form fields `mode`/`groups`. Flow: validate config (dependency) → stream upload to a temp file →
+  create job → `scan_archive(temp_path, config)` → complete/fail → update store → return `ScanJob`.
+  Response contract unchanged (200 COMPLETED/FAILED). The **server-side `archive_path`/`ScanRequest`
+  JSON body is removed** (a JSON body is now 422).
+- **Transport-agnostic config dependency** (per adjustment): `scan_config_from_form` reconstructs
+  `ScanConfig` from form fields and raises **only `ValidationError`** (no `HTTPException`); a new
+  app-level handler (`app/api/exception_handlers.py`) maps `pydantic.ValidationError → 422`. So an
+  invalid AUTO+groups / MANUAL-empty combination is 422 with no job created.
+- **Streaming helper in the upload package** (`app/services/upload/streaming.py`, per adjustment):
+  `stream_zip_to_temp(source, *, max_bytes, directory=None)` streams in 64 KiB chunks to a
+  **server-chosen** temp `.zip` (client filename never used as a path), enforcing a running byte cap
+  = `Settings.extraction_max_archive_bytes` → raises `ArchiveTooLargeError`; cleans up its own
+  partial file on any streaming error (incl. client disconnect). Plus `sanitize_upload_filename`
+  (adjustment 3) — strips directory components, replaces unsafe chars, bounds length — used **only**
+  for the `scan_upload_received` audit log, never as a path.
+- **Size limits**: Content-Length pre-check (413 before streaming) **and** the streaming cap (413,
+  authoritative) — both mapped to HTTP 413 with no job created. Content/scan-level limits (file
+  count, uncompressed size, ratio) remain enforced inside `extract_zip` → FAILED job at 200.
+- **Cleanup on every exit path** (adjustment 4): the uploaded temp file is deleted in an outer
+  `finally` covering job creation and scan — success, FAILED, oversize (helper self-cleans),
+  unexpected error, duplicate-id (409), and client disconnect all leave nothing behind. (The
+  *extracted* dir cleanup remains the separately-deferred lifecycle slice.)
+- **Dependency**: added `python-multipart==0.0.20` to `requirements.txt` (needed for `UploadFile`/
+  `Form`) and installed it.
+- **Tests** (`test_scan_endpoint.py` rewritten to multipart; new `test_upload_streaming.py`):
+  successful upload, manual-config scoping, missing file → 422, invalid config → 422 (no job),
+  oversize via Content-Length → 413 and via streaming cap → 413 (no job), corrupted/zip-slip/
+  resource-limit → FAILED job, scan-execution failure → FAILED, temp-file cleanup on success **and**
+  failure (no leftover), JSON `archive_path` body rejected (regression), 404/409 read-side mapping,
+  and streaming-helper units (cap raises + self-cleans, disconnect self-cleans, filename sanitize).
+- **DoD gates green**: backend `ruff`/`mypy app` clean (61 files), `pytest` = **241 passed** (+14),
+  coverage **99.81%** (new code 100%); eval + contracts unaffected. Manual validation (live
+  multipart TestClient): upload→COMPLETED (1 finding, audit log emits sanitized filename + bytes);
+  manual scoping; corrupted→FAILED; missing-file/bad-config→422; JSON `archive_path`→422; oversize→
+  413; **0 leftover upload temp files**.
+
 ## In Progress
-- Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–3 complete** (validated
-  ZIP extraction; upload→scan orchestration; ZIP-bomb / resource-limit hardening). Later: ClamAV,
-  extraction cleanup lifecycle, multipart upload + persistence.
+- Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–3 + multipart upload
+  complete** (validated ZIP extraction; upload→scan orchestration; ZIP-bomb / resource-limit
+  hardening; secure multipart ingestion). Later: extraction-dir cleanup lifecycle, ClamAV.
 - Reporting Layer (TASK-170/450 export) — **Slices 1–2 complete** (versioned JSON report + SARIF
   2.1.0, both pure-library). Next (separate): a REST `GET /api/v1/scans/{id}/report?format=json|sarif`
   endpoint; later, rule-level SARIF descriptors once the registry surfaces rule metadata.
@@ -1014,9 +1057,24 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Reporting Layer Slice 2 — SARIF 2.1.0 export; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Multipart Upload — secure file-upload ingestion; awaiting human review before merge)
 
 ## Last Completed Task
+**Multipart Upload** — `POST /api/v1/scans` now takes a `multipart/form-data` file upload
+(`file: UploadFile` + `mode`/`groups` form fields) instead of a server-side `archive_path`, closing
+the LFI/path-traversal vector; `ScanRequest`/`archive_path` removed (JSON body → 422). Orchestration-
+only endpoint: stream upload → create job → `scan_archive` → complete/fail → return `ScanJob`
+(unchanged contract). New `upload/streaming.py` `stream_zip_to_temp` (chunked, server-chosen temp
+name, running byte cap = `extraction_max_archive_bytes` → `ArchiveTooLargeError`, self-cleans on any
+error incl. disconnect) + `sanitize_upload_filename` (log/audit only, never a path). Transport-
+agnostic `scan_config_from_form` raises only `ValidationError`; app-level handler maps
+`ValidationError → 422`. Oversize → 413 (Content-Length pre-check + streaming cap, no job); content/
+scan limits stay FAILED-job. Uploaded temp file deleted on **every** exit path via outer `finally`.
+Added `python-multipart==0.0.20`. `scan_archive`/`extract_zip`/jobs/store unchanged. Backend gates
+green (ruff/mypy clean, 61 files; pytest 241 passed; coverage 99.81%, new code 100%); eval+contracts
+unaffected; manual validation: upload→COMPLETED (sanitized-filename audit log), manual scoping,
+corrupted→FAILED, missing/bad-config→422, JSON body→422, oversize→413, 0 leftover temp files;
+awaiting human review before merge. Prior:
 Reporting Layer **Slice 2** — SARIF 2.1.0 export (`reporting/sarif_models.py` + `reporting/sarif.py`;
 `build_sarif_report`/`render_sarif_report`). Pure library, independent of the JSON report (both
 consume `ScanResult` directly). Detector-grained `tool.driver.rules` from the deterministic registry
