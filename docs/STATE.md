@@ -1,6 +1,6 @@
 # Current Project State
 
-**Updated:** 2026-07-19 (Multipart Upload — secure file-upload ingestion for POST /api/v1/scans; prior: Reporting Layer Slice 2 — SARIF 2.1.0 export; Reporting Layer Slice 1 — versioned JSON report export; Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
+**Updated:** 2026-07-19 (Web UI Foundation Slice 1 — upload landing page + reusable frontend architecture; prior: Multipart Upload — secure file-upload ingestion for POST /api/v1/scans; Reporting Layer Slice 2 — SARIF 2.1.0 export; Reporting Layer Slice 1 — versioned JSON report export; Repository Upload Slice 3 — ZIP-bomb / resource-limit hardening; REST API Scan Endpoint Slice 2 — GET read side + typed-exception status mapping; Scan Endpoint Slice 1 — synchronous POST /api/v1/scans; Scan Job Lifecycle Slice 2 — thread-safe in-memory ScanJobStore; REST API Slice 1 — /version endpoint + API architecture; Scan Job Lifecycle Slice 1 — immutable in-memory scan-job models + transitions; Repository Upload Slice 2 — upload→scan orchestration; Upload Slice 1 — validated ZIP extraction; Scan Pipeline Slice 4 — triage-ready ordering / **MVP Scan Pipeline complete**; Slice 3 execution + aggregation; Slice 2 resolution + selection; Slice 1 language foundation; Slice 0 shared `contracts` package (M3))
 
 ## Resolved Decisions (v1 / MVP)
 - **Tenancy:** Single-tenant (multi-tenancy deferred — TASK-014).
@@ -1007,7 +1007,43 @@ extraction pipeline and all its hardening are untouched.
   manual scoping; corrupted→FAILED; missing-file/bad-config→422; JSON `archive_path`→422; oversize→
   413; **0 leftover upload temp files**.
 
+## Completed — Web UI Foundation Slice 1: upload landing page + frontend architecture (2026-07-19)
+First slice of the Web UI, on branch `feature/task-020a-evaluation-foundation`. Builds the frontend
+around the platform's **primary workflow (Repository Upload → Scan → Results)** by establishing the
+reusable architecture and shipping the **Upload landing page**. Per the approved scope, the actual
+**upload flow and scan execution are deferred** — the Scan button is a deliberate stub (no network).
+No backend change (the existing `POST /api/v1/scans` is untouched).
+
+- **Dev proxy** (`frontend/vite.config.ts`): `/api` → `http://localhost:8000` (override via
+  `VITE_API_PROXY_TARGET`), so the SPA reaches the API same-origin in dev — the backend ships no CORS
+  middleware by design, and production serving stays a later deployment concern.
+- **Typed API contract** (`frontend/src/services/scans.ts`): TS types mirroring the backend —
+  `LanguageGroup`, `TargetMode`, `ScanJobStatus`, `ScanConfigRequest`, `ScanJob` (result left opaque
+  until the results view), plus the page-facing `TechStack` union and the pure
+  `techStackToScanConfig` mapper (Auto→`{auto,[]}`, Python→`{manual,[python]}`, Web→`{manual,[web]}`).
+  The existing GET-only `getJson` helper is retained (now unit-tested). **No upload/scan network call
+  added** (deferred).
+- **Upload landing page** (`frontend/src/pages/UploadPage.tsx`, the index route): `.zip` file picker
+  with a client-side extension guard + human-readable size, the **Tech Stack selector**
+  (`components/upload/TechStackSelector.tsx`: Auto Detect / Python / Web radio group), and a **Scan
+  button disabled until a valid archive is chosen** whose click shows a "wired up in the next slice"
+  stub notice (no request). Placeholder `StatusPage` retired.
+- **Shell + routing + nav** (`App.tsx`, `components/layout/Layout.tsx`): React Router landing at `/`
+  → Upload; header nav with an active "Upload" link and a disabled "Scans" placeholder (history view
+  is a later slice). React Query provider already present.
+- **Frontend test harness** (the previously-missing quality gate): added **Vitest + Testing Library
+  (+ jest-dom, user-event, jsdom)**, `test`/`test:coverage` scripts, a jsdom setup file, and an 80%
+  coverage gate. `frontend/coverage/` git-ignored.
+- **DoD gates green**: `npm run typecheck` clean, `npm run lint` clean, `npm test` = **16 passed**
+  (5 files), coverage **100% stmts / 92.3% branches** (≥80% gate), `npm run build` succeeds. Manual
+  validation: `npm run dev` serves the SPA (200); `curl` through the dev proxy to a live backend
+  returned `GET /api/v1/version` **200 with identical JSON** (SPA :5173 → backend :8000), proving the
+  proxy wiring end-to-end.
+
 ## In Progress
+- **Web UI (TASK-180 surface) — Slice 1 (foundation + Upload landing page) complete.** Next slices:
+  wire the upload flow (multipart `POST /api/v1/scans` via a React Query mutation + result view),
+  then the Scans history/list page, then a report view/download (needs the REST report endpoint).
 - Repository Upload & Safe Extraction subsystem (TASK-130/131) — **Slices 1–3 + multipart upload
   complete** (validated ZIP extraction; upload→scan orchestration; ZIP-bomb / resource-limit
   hardening; secure multipart ingestion). Later: extraction-dir cleanup lifecycle, ClamAV.
@@ -1057,9 +1093,22 @@ skill-learning loop. See TASK_BACKLOG.md → "Post-MVP / Deferred".
   `project_curated` remains `python` (backward-compatible). See the reconciliation note below.
 
 ## Current Branch
-feature/task-020a-evaluation-foundation (Multipart Upload — secure file-upload ingestion; awaiting human review before merge)
+feature/task-020a-evaluation-foundation (Web UI Foundation Slice 1 — upload landing page + frontend architecture; awaiting human review before merge)
 
 ## Last Completed Task
+**Web UI Foundation Slice 1** — the frontend now centers on the primary workflow (Repository Upload →
+Scan → Results), shipping the reusable architecture + the **Upload landing page**; the upload flow and
+scan execution are **deferred** (Scan button is a no-network stub), per approved scope. Added a Vite
+dev proxy (`/api` → backend :8000; the backend ships no CORS by design), a typed API contract
+(`services/scans.ts`: `LanguageGroup`/`TargetMode`/`ScanJobStatus`/`ScanConfigRequest`/`ScanJob` + the
+pure `techStackToScanConfig` mapper), the Upload page (`.zip` picker with extension guard + size, a
+Tech Stack selector Auto/Python/Web, Scan disabled until a valid archive), React Router landing + nav
+(active Upload, disabled Scans placeholder), and a **Vitest + Testing Library** harness with an 80%
+coverage gate (`frontend/coverage/` git-ignored; placeholder `StatusPage` retired). No backend change.
+Frontend gates green: typecheck + lint clean, `npm test` 16 passed (5 files), coverage 100% stmts /
+92.3% branches (≥80%), `npm run build` succeeds; manual validation proved the dev proxy end-to-end
+(`GET /api/v1/version` → 200 identical JSON through :5173 → live backend :8000). Awaiting human review
+before merge. Prior:
 **Multipart Upload** — `POST /api/v1/scans` now takes a `multipart/form-data` file upload
 (`file: UploadFile` + `mode`/`groups` form fields) instead of a server-side `archive_path`, closing
 the LFI/path-traversal vector; `ScanRequest`/`archive_path` removed (JSON body → 422). Orchestration-
